@@ -8,6 +8,7 @@ export default function Preview() {
   const [documentData, setDocumentData] = useState<{
     fileName: string;
     extractedText: string;
+    fullText: string;
     textFileName: string;
     pdfFileName: string;
     numPages: number;
@@ -15,6 +16,7 @@ export default function Preview() {
     wordCount: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isTextExpanded, setIsTextExpanded] = useState(false);
 
   useEffect(() => {
     const loadDocumentData = async () => {
@@ -83,10 +85,11 @@ export default function Preview() {
       setDocumentData({
         fileName: fileName || "Unknown Document",
         extractedText: extractedText || "",
+        fullText: fullText,
         textFileName: textFileName || "",
         pdfFileName: pdfFileName || currentDoc?.pdfFileName || "",
         numPages: currentDoc?.numPages || 0,
-        textLength: currentDoc?.textLength || 0,
+        textLength: fullText.length,
         wordCount: wordCount,
       });
       setLoading(false);
@@ -116,7 +119,7 @@ export default function Preview() {
       <nav className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between border-b border-gray-200">
         <div className="flex items-center gap-10">
           <a href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-linear-to-br from-purple-400 to-purple-600 flex items-center justify-center">
               <div className="w-6 h-6 rounded-full bg-white/30"></div>
             </div>
             <span className="text-xl font-semibold text-gray-900">Document AI</span>
@@ -207,18 +210,69 @@ export default function Preview() {
 
         {/* Extracted Text Display */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-            <h3 className="text-lg font-semibold text-gray-900">Extracted Text</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Preview of the first 500 characters - Full text saved as: <code className="text-xs bg-gray-200 px-2 py-1 rounded">{documentData.textFileName}</code>
-            </p>
+          <div
+            className="bg-gray-50 border-b border-gray-200 px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors"
+            onClick={() => setIsTextExpanded(!isTextExpanded)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Extracted Text</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {isTextExpanded
+                    ? `Full text (${documentData.textLength.toLocaleString()} characters)`
+                    : `Click to expand - Preview of first 500 characters`}
+                </p>
+              </div>
+              <div className="ml-4">
+                <svg
+                  className={`w-6 h-6 text-gray-600 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
           <div className="p-8">
             <div className="prose prose-lg max-w-none">
               <div className="text-gray-800 leading-relaxed whitespace-pre-wrap font-serif text-base">
-                {documentData.extractedText}
+                {isTextExpanded ? documentData.fullText : documentData.extractedText}
               </div>
             </div>
+            {!isTextExpanded && (
+              <div className="mt-6 text-center">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsTextExpanded(true);
+                  }}
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold shadow-sm inline-flex items-center gap-2"
+                >
+                  <span>Show More</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {isTextExpanded && (
+              <div className="mt-6 text-center border-t border-gray-200 pt-6">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsTextExpanded(false);
+                  }}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-semibold shadow-sm inline-flex items-center gap-2"
+                >
+                  <span>Show Less</span>
+                  <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
