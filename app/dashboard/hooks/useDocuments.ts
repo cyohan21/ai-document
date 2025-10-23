@@ -62,15 +62,16 @@ export function useDocuments() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/upload', {
+      // Extract text from PDF
+      const extractResponse = await fetch('/api/extract-pdf', {
         method: 'POST',
         body: formData,
       });
 
-      const result = await response.json();
+      const extractResult = await extractResponse.json();
 
-      if (!result.success) {
-        alert("Failed to upload file");
+      if (!extractResult.success) {
+        alert("Failed to extract PDF content: " + (extractResult.error || "Unknown error"));
         return;
       }
 
@@ -80,8 +81,11 @@ export function useDocuments() {
       // Get unique file name
       const uniqueFileName = getUniqueFileName(file.name, existingDocs);
 
-      localStorage.setItem("uploadedPDF", result.fileUrl);
+      // Store extracted text info
+      localStorage.setItem("extractedText", extractResult.data.textPreview);
+      localStorage.setItem("extractedTextPath", extractResult.data.textFilePath);
       localStorage.setItem("uploadedPDFName", uniqueFileName);
+      localStorage.setItem("uploadedPDFFileName", extractResult.data.pdfFileName);
 
       const newDocument: Document = {
         id: Date.now().toString(),
@@ -89,8 +93,8 @@ export function useDocuments() {
         sender: "John Doe",
         recipient: "N/A",
         date: new Date().toLocaleDateString(),
-        status: "Draft",
-        pdfUrl: result.fileUrl,
+        status: "Extracted",
+        pdfUrl: extractResult.data.pdfFileName,
         signatures: [],
       };
 
@@ -98,9 +102,10 @@ export function useDocuments() {
       localStorage.setItem("documents", JSON.stringify(existingDocs));
       localStorage.setItem("currentDocumentId", newDocument.id);
 
-      router.push("/sign");
+      // Redirect to preview page
+      router.push("/preview");
     } catch (error) {
-      alert("Failed to upload file");
+      alert("Failed to upload file: " + (error instanceof Error ? error.message : "Unknown error"));
     }
   };
 

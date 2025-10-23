@@ -26,25 +26,36 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Create output directory if it doesn't exist
-    const outputDir = path.join(process.cwd(), 'extracted-texts');
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    // Create output directories if they don't exist
+    const textOutputDir = path.join(process.cwd(), 'extracted-texts');
+    const pdfOutputDir = path.join(process.cwd(), 'uploaded-pdfs');
+
+    if (!fs.existsSync(textOutputDir)) {
+      fs.mkdirSync(textOutputDir, { recursive: true });
+    }
+    if (!fs.existsSync(pdfOutputDir)) {
+      fs.mkdirSync(pdfOutputDir, { recursive: true });
     }
 
-    // Generate output filename based on original PDF name
+    // Generate output filenames based on original PDF name
     const originalName = file.name.replace('.pdf', '');
     const timestamp = Date.now();
-    const outputPath = path.join(outputDir, `${originalName}-${timestamp}.txt`);
+    const textOutputPath = path.join(textOutputDir, `${originalName}-${timestamp}.txt`);
+    const pdfOutputPath = path.join(pdfOutputDir, `${originalName}-${timestamp}.pdf`);
+
+    // Save the original PDF file
+    fs.writeFileSync(pdfOutputPath, buffer);
 
     // Extract PDF content and save to .txt file
-    const { filePath, result } = await extractPDFToTextFile(buffer, outputPath);
+    const { filePath, result } = await extractPDFToTextFile(buffer, textOutputPath);
 
     return NextResponse.json({
       success: true,
       message: 'PDF extracted successfully',
       data: {
         textFilePath: filePath,
+        pdfFilePath: pdfOutputPath,
+        pdfFileName: `${originalName}-${timestamp}.pdf`,
         numPages: result.numPages,
         textPreview: result.text.substring(0, 500), // First 500 characters
         textLength: result.text.length,

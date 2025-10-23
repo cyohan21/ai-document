@@ -9,6 +9,7 @@ export default function Preview() {
     fileName: string;
     extractedText: string;
     textPath: string;
+    pdfFileName: string;
     numPages: number;
     textLength: number;
     wordCount: number;
@@ -21,6 +22,7 @@ export default function Preview() {
       const fileName = localStorage.getItem("uploadedPDFName");
       const extractedText = localStorage.getItem("extractedText");
       const textPath = localStorage.getItem("extractedTextPath");
+      const pdfFileName = localStorage.getItem("uploadedPDFFileName");
       const currentDocumentId = localStorage.getItem("currentDocumentId");
 
       if (!fileName || !extractedText) {
@@ -61,6 +63,7 @@ export default function Preview() {
         fileName: fileName || "Unknown Document",
         extractedText: extractedText || "",
         textPath: textPath || "",
+        pdfFileName: pdfFileName || currentDoc?.pdfFileName || "",
         numPages: currentDoc?.numPages || 0,
         textLength: currentDoc?.textLength || 0,
         wordCount: wordCount,
@@ -129,19 +132,17 @@ export default function Preview() {
             <div className="flex gap-3">
               <button
                 onClick={() => {
-                  // Open the full text file in a new window
-                  if (documentData?.textPath) {
-                    const fileName = documentData.textPath.split(/[/\\]/).pop();
-                    window.open(`/api/extract-pdf?file=${fileName}&download=true`, '_blank');
+                  // Open the PDF in a new window
+                  if (documentData?.pdfFileName) {
+                    window.open(`/api/view-pdf?file=${documentData.pdfFileName}`, '_blank');
                   }
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                View Full Text
+                View PDF
               </button>
               <button
                 onClick={() => router.push("/upload")}

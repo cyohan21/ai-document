@@ -49,6 +49,7 @@ export default function Upload() {
       localStorage.setItem("extractedText", extractResult.data.textPreview);
       localStorage.setItem("extractedTextPath", extractResult.data.textFilePath);
       localStorage.setItem("uploadedPDFName", file.name);
+      localStorage.setItem("uploadedPDFFileName", extractResult.data.pdfFileName);
 
       // Store in documents list for dashboard
       const documentsStr = localStorage.getItem("documents");
@@ -62,6 +63,7 @@ export default function Upload() {
         date: new Date().toLocaleDateString(),
         status: "Extracted",
         textPath: extractResult.data.textFilePath,
+        pdfFileName: extractResult.data.pdfFileName,
         numPages: extractResult.data.numPages,
         textLength: extractResult.data.textLength,
       };
