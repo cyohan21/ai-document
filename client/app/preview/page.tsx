@@ -8,7 +8,7 @@ export default function Preview() {
   const [documentData, setDocumentData] = useState<{
     fileName: string;
     extractedText: string;
-    textPath: string;
+    textFileName: string;
     pdfFileName: string;
     numPages: number;
     textLength: number;
@@ -21,7 +21,7 @@ export default function Preview() {
       // Get the document data from localStorage
       const fileName = localStorage.getItem("uploadedPDFName");
       const extractedText = localStorage.getItem("extractedText");
-      const textPath = localStorage.getItem("extractedTextPath");
+      const textFileName = localStorage.getItem("extractedTextFileName");
       const pdfFileName = localStorage.getItem("uploadedPDFFileName");
       const currentDocumentId = localStorage.getItem("currentDocumentId");
 
@@ -36,21 +36,42 @@ export default function Preview() {
       const documents = documentsStr ? JSON.parse(documentsStr) : [];
       const currentDoc = documents.find((doc: any) => doc.id === currentDocumentId);
 
-      // Try to load full text from the server
+      // Try to load full text from the backend server
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       let fullText = extractedText;
-      if (textPath) {
+      if (textFileName) {
         try {
-          const fileName = textPath.split(/[/\\]/).pop();
-          const response = await fetch(`/api/extract-pdf?file=${fileName}`);
+          const response = await fetch(`${API_URL}/api/pdf/text/${textFileName}`);
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.data.content) {
               fullText = result.data.content;
             }
+          } else if (response.status === 404) {
+            // Text file not found on server - redirect to dashboard
+            console.error("Text file not found on server, redirecting to dashboard");
+            router.push("/dashboard");
+            return;
           }
         } catch (error) {
           console.error("Failed to load full text:", error);
           // Fall back to preview text
+        }
+      }
+
+      // Verify PDF exists on server
+      if (pdfFileName) {
+        try {
+          const response = await fetch(`${API_URL}/api/pdf/view/${pdfFileName}`, {
+            method: 'HEAD' // Just check if it exists without downloading
+          });
+          if (!response.ok) {
+            console.error("PDF file not found on server, redirecting to dashboard");
+            router.push("/dashboard");
+            return;
+          }
+        } catch (error) {
+          console.error("Failed to verify PDF exists:", error);
         }
       }
 
@@ -62,7 +83,7 @@ export default function Preview() {
       setDocumentData({
         fileName: fileName || "Unknown Document",
         extractedText: extractedText || "",
-        textPath: textPath || "",
+        textFileName: textFileName || "",
         pdfFileName: pdfFileName || currentDoc?.pdfFileName || "",
         numPages: currentDoc?.numPages || 0,
         textLength: currentDoc?.textLength || 0,
@@ -132,9 +153,10 @@ export default function Preview() {
             <div className="flex gap-3">
               <button
                 onClick={() => {
-                  // Open the PDF in a new window
+                  // Open the PDF in a new window from backend server
                   if (documentData?.pdfFileName) {
-                    window.open(`/api/view-pdf?file=${documentData.pdfFileName}`, '_blank');
+                    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+                    window.open(`${API_URL}/api/pdf/view/${documentData.pdfFileName}`, '_blank');
                   }
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
@@ -188,7 +210,7 @@ export default function Preview() {
           <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
             <h3 className="text-lg font-semibold text-gray-900">Extracted Text</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Preview of the first 500 characters - Full text saved to: <code className="text-xs bg-gray-200 px-2 py-1 rounded">{documentData.textPath}</code>
+              Preview of the first 500 characters - Full text saved as: <code className="text-xs bg-gray-200 px-2 py-1 rounded">{documentData.textFileName}</code>
             </p>
           </div>
           <div className="p-8">

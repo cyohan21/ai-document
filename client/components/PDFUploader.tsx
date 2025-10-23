@@ -3,10 +3,12 @@
 import { useState } from 'react';
 
 interface ExtractionResult {
-  textFilePath: string;
+  pdfFileName: string;
+  textFileName: string;
   numPages: number;
   textPreview: string;
   textLength: number;
+  info?: any;
 }
 
 export default function PDFUploader() {
@@ -37,7 +39,8 @@ export default function PDFUploader() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/extract-pdf', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_URL}/api/pdf/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -118,7 +121,10 @@ export default function PDFUploader() {
                 <strong>Text Length:</strong> {result.textLength.toLocaleString()} characters
               </p>
               <p>
-                <strong>Saved to:</strong> {result.textFilePath}
+                <strong>PDF File:</strong> {result.pdfFileName}
+              </p>
+              <p>
+                <strong>Text File:</strong> {result.textFileName}
               </p>
               <div className="mt-4">
                 <strong className="block mb-2">Preview (first 500 characters):</strong>

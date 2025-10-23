@@ -20,10 +20,49 @@ export function useDocuments() {
   const [openMenuIndex, setOpenMenuIndex] = useState<string | null>(null);
 
   useEffect(() => {
-    const documentsStr = localStorage.getItem("documents");
-    if (documentsStr) {
-      setDocuments(JSON.parse(documentsStr));
-    }
+    const loadDocumentsFromServer = async () => {
+      try {
+        // Fetch available PDFs from server
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${API_URL}/api/pdf/list`);
+
+        if (!response.ok) {
+          console.error('Failed to fetch PDF list from server');
+          setDocuments([]);
+          return;
+        }
+
+        const result = await response.json();
+        console.log("Server response:", result);
+
+        // Convert server PDFs to Document format
+        const docs: Document[] = result.data.map((pdf: any) => {
+          // Extract original name from filename (remove timestamp)
+          // Format: "filename-timestamp.pdf"
+          const match = pdf.filename.match(/^(.+)-(\d+)\.pdf$/);
+          const displayName = match ? match[1] + '.pdf' : pdf.filename;
+
+          return {
+            id: pdf.filename, // Use filename as unique ID
+            title: displayName,
+            sender: "Unknown",
+            recipient: "N/A",
+            date: new Date(pdf.created).toLocaleDateString(),
+            status: "Completed" as const,
+            pdfUrl: pdf.filename,
+            signatures: [],
+          };
+        });
+
+        console.log("Loaded documents from server:", docs);
+        setDocuments(docs);
+      } catch (error) {
+        console.error('Error loading documents from server:', error);
+        setDocuments([]);
+      }
+    };
+
+    loadDocumentsFromServer();
   }, []);
 
   const getUniqueFileName = (fileName: string, existingDocs: Document[]): string => {
@@ -62,8 +101,9 @@ export function useDocuments() {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Extract text from PDF
-      const extractResponse = await fetch('/api/extract-pdf', {
+      // Extract text from PDF using backend server
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const extractResponse = await fetch(`${API_URL}/api/pdf/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -83,7 +123,7 @@ export function useDocuments() {
 
       // Store extracted text info
       localStorage.setItem("extractedText", extractResult.data.textPreview);
-      localStorage.setItem("extractedTextPath", extractResult.data.textFilePath);
+      localStorage.setItem("extractedTextFileName", extractResult.data.textFileName);
       localStorage.setItem("uploadedPDFName", uniqueFileName);
       localStorage.setItem("uploadedPDFFileName", extractResult.data.pdfFileName);
 
@@ -109,27 +149,52 @@ export function useDocuments() {
     }
   };
 
-  const handleDeleteDocument = (docId: string) => {
+  const handleDeleteDocument = async (docId: string) => {
     if (!confirm("Are you sure you want to delete this document?")) {
       return;
     }
 
+    // TODO: Implement server-side delete endpoint
+    // For now, just remove from UI
     const updatedDocuments = documents.filter(doc => doc.id !== docId);
     setDocuments(updatedDocuments);
-    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
     setOpenMenuIndex(null);
+
+    alert("Note: Server-side delete not yet implemented. Document will reappear on refresh.");
   };
 
-  const handleEditDocument = (docId: string) => {
+  const handleEditDocument = async (docId: string) => {
     const doc = documents.find(d => d.id === docId);
     if (!doc) return;
 
-    // Set this document as the current one
-    localStorage.setItem("currentDocumentId", doc.id);
-    localStorage.setItem("uploadedPDFName", doc.title);
+    // Extract the text filename from PDF filename
+    // PDF: "filename-timestamp.pdf" -> Text: "filename-timestamp.txt"
+    const textFileName = doc.pdfUrl.replace('.pdf', '.txt');
 
-    // Navigate to preview page
-    router.push("/preview");
+    // Load the text preview from server
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    try {
+      const response = await fetch(`${API_URL}/api/pdf/text/${textFileName}`);
+      if (response.ok) {
+        const result = await response.json();
+        const textPreview = result.data.content.substring(0, 500);
+
+        // Store document info in localStorage for preview page
+        localStorage.setItem("extractedText", textPreview);
+        localStorage.setItem("extractedTextFileName", textFileName);
+        localStorage.setItem("uploadedPDFName", doc.title);
+        localStorage.setItem("uploadedPDFFileName", doc.pdfUrl);
+        localStorage.setItem("currentDocumentId", doc.id);
+
+        // Navigate to preview page
+        router.push("/preview");
+      } else {
+        alert("Failed to load document text");
+      }
+    } catch (error) {
+      console.error("Error loading document:", error);
+      alert("Failed to load document");
+    }
   };
 
   const completedCount = documents.filter(doc => doc.status === "Completed").length;

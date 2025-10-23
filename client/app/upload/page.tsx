@@ -29,8 +29,9 @@ export default function Upload() {
       const formData = new FormData();
       formData.append('file', file);
 
-      // Extract text from PDF
-      const extractResponse = await fetch('/api/extract-pdf', {
+      // Extract text from PDF using backend server
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const extractResponse = await fetch(`${API_URL}/api/pdf/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -47,7 +48,7 @@ export default function Upload() {
 
       // Store extracted text info
       localStorage.setItem("extractedText", extractResult.data.textPreview);
-      localStorage.setItem("extractedTextPath", extractResult.data.textFilePath);
+      localStorage.setItem("extractedTextFileName", extractResult.data.textFileName);
       localStorage.setItem("uploadedPDFName", file.name);
       localStorage.setItem("uploadedPDFFileName", extractResult.data.pdfFileName);
 
@@ -62,7 +63,7 @@ export default function Upload() {
         recipient: "N/A",
         date: new Date().toLocaleDateString(),
         status: "Extracted",
-        textPath: extractResult.data.textFilePath,
+        textPath: extractResult.data.textFileName,
         pdfFileName: extractResult.data.pdfFileName,
         numPages: extractResult.data.numPages,
         textLength: extractResult.data.textLength,
