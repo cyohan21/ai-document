@@ -1,0 +1,129 @@
+
+
+Mobile App Launch Checklist (iOS + Android)
+ 1. Polish & Final Testing
+Before submission:
+Test on real iOS + Android devices
+Handle:
+App crashes
+Deep links
+Offline mode (if needed)
+App icon + splash screen
+Onboarding & login flow
+Ensure all navigation is smooth (e.g., expo-router, react-navigation)
+Remove dev-only logs, test accounts, fake data, etc.
+ 2. Backend Readiness
+Host backend on reliable cloud (Render, Railway, Fly.io, GCP, AWS)
+Use production-grade database
+Set up HTTPS for all API calls
+Implement:
+Rate limiting
+CORS rules
+Auth checks
+Add monitoring/logging (e.g., Logtail, Sentry)
+ 3. App Store Setup
+ iOS (App Store)
+Create Apple Developer Account (\$99/year)
+Use App Store Connect:
+App name, description, keywords
+Screenshots (iPhone 6.7" + iPhone SE required)
+Privacy Policy URL (host on GitHub Pages or Vercel)
+Info.plist permissions setup (NSCameraUsageDescription, etc.)
+ Android (Play Store)
+Create Google Play Developer Account (\$25 one-time)
+Use Play Console:
+App name, description, icon, screenshots
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+1
+
+Privacy policy, content rating, etc.
+ 4. Build App for Release
+Using Expo:
+npxexpoupload:ios# iOS (Mac or EAS build)
+npxexpoupload:android# Android
+Or manually:
+npxexpoexport--platformandroid
+npxexpoexport--platformios
+Using EAS Build:
+npxeasbuild--platformall
+Outputs: .aab (Android App Bundle) and .ipa (iOS archive)
+ 5. Submit to App Stores
+ iOS:
+Install Transporter on Mac
+Upload .ipa
+Go to App Store Connect → Submit for Review
+Apple review (1–3 days)
+ Android:
+Upload .aab to Play Console
+Complete forms: App Details, Content Rating
+Submit for review (24–48h typical)
+ 6. Post-Launch
+Monitor with Sentry
+Watch backend logs
+Collect user feedback
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+2
+
+Ship hotfixes / improvements
+Promote on:
+Social Media
+Product Hunt
+Reddit
+ Bonus: Deep Linking + Install Fallback
+Set up:
+Universal Links (iOS)
+App Links (Android)
+If app installed: opens directly
+If not: redirect to store:
+iOS: https://apps.apple.com/app/your-app-id
+Android: https://play.google.com/store/apps/details?id=your.package.name
+Let me know if you want this adapted for Expo, React Native CLI, or specific backend stack (e.g., Flask,
+Supabase, Firebase).
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+3

@@ -120,19 +120,11 @@ export function useDocuments() {
     if (!doc) return;
 
     // Set this document as the current one
-    localStorage.setItem("uploadedPDF", doc.pdfUrl);
-    localStorage.setItem("uploadedPDFName", doc.title);
     localStorage.setItem("currentDocumentId", doc.id);
+    localStorage.setItem("uploadedPDFName", doc.title);
 
-    // Load existing signatures if any
-    if (doc.signatures && doc.signatures.length > 0) {
-      localStorage.setItem("signatures", JSON.stringify(doc.signatures));
-    } else {
-      localStorage.removeItem("signatures");
-    }
-
-    // Navigate to sign page
-    router.push("/sign");
+    // Navigate to preview page
+    router.push("/preview");
   };
 
   const completedCount = documents.filter(doc => doc.status === "Completed").length;

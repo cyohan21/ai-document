@@ -7,6 +7,7 @@ import { styles } from './styles/upload.styles';
 export default function Upload() {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -21,26 +22,32 @@ export default function Upload() {
 
     // Clear any previous errors
     setError("");
+    setLoading(true);
 
     try {
       // Upload file to server
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/upload', {
+      // Extract text from PDF
+      const extractResponse = await fetch('/api/extract-pdf', {
         method: 'POST',
         body: formData,
       });
 
-      const result = await response.json();
+      const extractResult = await extractResponse.json();
 
-      if (!result.success) {
-        setError("Failed to upload file");
+      if (!extractResult.success) {
+        setError("Failed to extract PDF content: " + (extractResult.error || "Unknown error"));
+        setLoading(false);
         return;
       }
 
-      // Store file URL instead of base64
-      localStorage.setItem("uploadedPDF", result.fileUrl);
+      console.log("Extract result:", extractResult);
+
+      // Store extracted text info
+      localStorage.setItem("extractedText", extractResult.data.textPreview);
+      localStorage.setItem("extractedTextPath", extractResult.data.textFilePath);
       localStorage.setItem("uploadedPDFName", file.name);
 
       // Store in documents list for dashboard
@@ -53,19 +60,22 @@ export default function Upload() {
         sender: "John Doe",
         recipient: "N/A",
         date: new Date().toLocaleDateString(),
-        status: "Draft",
-        pdfUrl: result.fileUrl,
-        signatures: [],
+        status: "Extracted",
+        textPath: extractResult.data.textFilePath,
+        numPages: extractResult.data.numPages,
+        textLength: extractResult.data.textLength,
       };
 
       documents.push(newDocument);
       localStorage.setItem("documents", JSON.stringify(documents));
       localStorage.setItem("currentDocumentId", newDocument.id);
 
-      // Redirect to sign page
-      router.push("/sign");
+      // Redirect to preview page
+      router.push("/preview");
     } catch (error) {
-      setError("Failed to upload file");
+      console.error("Upload error:", error);
+      setError("Failed to upload file: " + (error instanceof Error ? error.message : "Unknown error"));
+      setLoading(false);
     }
   };
 
@@ -98,7 +108,7 @@ export default function Upload() {
           Upload your document
         </h1>
         <p style={styles.description}>
-          Choose a PDF file to sign and get started
+          Choose a PDF file to analyze and extract content
         </p>
 
         {error && (
@@ -107,29 +117,46 @@ export default function Upload() {
           </div>
         )}
 
-        <div style={styles.uploadContainer}>
-          <label style={styles.uploadLabel}>
-            <input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileChange}
-              style={styles.fileInput}
-            />
-            <div style={styles.dropZone} className="hover:border-purple-500 hover:from-purple-100 hover:to-purple-200 group">
-              <div style={styles.dropZoneContent}>
-                <div style={styles.uploadIconContainer} className="group-hover:bg-purple-700">
-                  <svg style={styles.uploadIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
-                <div style={styles.uploadTextContainer}>
-                  <p style={styles.uploadTitle}>Click to upload PDF</p>
-                  <p style={styles.uploadSubtitle}>or drag and drop your file here</p>
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              border: '4px solid #e5e7eb',
+              borderTopColor: '#9333ea',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 1rem'
+            }}></div>
+            <p style={{ color: '#6b7280', fontSize: '1rem' }}>Extracting text from PDF...</p>
+          </div>
+        )}
+
+        {!loading && (
+          <div style={styles.uploadContainer}>
+            <label style={styles.uploadLabel}>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handleFileChange}
+                style={styles.fileInput}
+              />
+              <div style={styles.dropZone} className="hover:border-purple-500 hover:from-purple-100 hover:to-purple-200 group">
+                <div style={styles.dropZoneContent}>
+                  <div style={styles.uploadIconContainer} className="group-hover:bg-purple-700">
+                    <svg style={styles.uploadIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                  </div>
+                  <div style={styles.uploadTextContainer}>
+                    <p style={styles.uploadTitle}>Click to upload PDF</p>
+                    <p style={styles.uploadSubtitle}>or drag and drop your file here</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </label>
-        </div>
+            </label>
+          </div>
+        )}
       </main>
     </div>
   );
