@@ -18,9 +18,10 @@ export default function TestAI() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
-  const audioQueueRef = useRef<string[]>([]);
+  const audioQueueRef = useRef<Int16Array[]>([]);
   const isPlayingRef = useRef(false);
   const playbackContextRef = useRef<AudioContext | null>(null);
+  const nextPlayTimeRef = useRef(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -78,8 +79,31 @@ export default function TestAI() {
             queueAudio(data.delta);
           }
         } else if (data.type === "response.audio_transcript.delta") {
-          // Show transcript
-          console.log("Audio transcript:", data.delta);
+          // Show transcript in chat
+          if (data.delta) {
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last && last.role === "assistant") {
+                return [
+                  ...prev.slice(0, -1),
+                  { ...last, content: last.content + data.delta }
+                ];
+              } else {
+                return [...prev, { role: "assistant", content: data.delta }];
+              }
+            });
+          }
+        } else if (data.type === "conversation.item.input_audio_transcription.completed") {
+          // Show user's audio transcription
+          if (data.transcript) {
+            addMessage("user", data.transcript);
+          }
+        } else if (data.type === "input_audio_buffer.speech_started") {
+          // User started speaking
+          console.log("Speech started");
+        } else if (data.type === "input_audio_buffer.speech_stopped") {
+          // User stopped speaking
+          console.log("Speech stopped");
         } else if (data.type === "response.done" || data.type === "response.text.done") {
           setIsLoading(false);
         }
@@ -226,13 +250,28 @@ export default function TestAI() {
 
   // Add audio chunk to queue
   const queueAudio = (base64Audio: string) => {
-    audioQueueRef.current.push(base64Audio);
-    if (!isPlayingRef.current) {
-      playNextAudio();
+    try {
+      // Decode base64 to ArrayBuffer
+      const binaryString = atob(base64Audio);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Convert to Int16Array with proper alignment
+      const int16Array = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
+      audioQueueRef.current.push(int16Array);
+
+      if (!isPlayingRef.current) {
+        playNextAudio();
+      }
+    } catch (error) {
+      console.error("Error queueing audio:", error);
     }
   };
 
-  // Play next audio chunk from queue
+  // Play next audio chunk from queue with seamless playback
   const playNextAudio = async () => {
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
@@ -240,45 +279,53 @@ export default function TestAI() {
     }
 
     isPlayingRef.current = true;
-    const base64Audio = audioQueueRef.current.shift()!;
 
     try {
       // Create audio context if needed
       if (!playbackContextRef.current) {
         playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+        nextPlayTimeRef.current = playbackContextRef.current.currentTime;
       }
 
       const audioContext = playbackContextRef.current;
-
-      // Decode base64 to binary
-      const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
+      const pcm16Data = audioQueueRef.current.shift()!;
 
       // Create audio buffer
-      const audioBuffer = audioContext.createBuffer(1, bytes.length / 2, 24000);
+      const audioBuffer = audioContext.createBuffer(1, pcm16Data.length, 24000);
       const channelData = audioBuffer.getChannelData(0);
 
-      // Convert PCM16 to Float32
-      const view = new DataView(bytes.buffer);
-      for (let i = 0; i < channelData.length; i++) {
-        const int16 = view.getInt16(i * 2, true);
-        channelData[i] = int16 / (int16 < 0 ? 0x8000 : 0x7fff);
+      // Convert PCM16 to Float32 with proper normalization
+      for (let i = 0; i < pcm16Data.length; i++) {
+        const sample = pcm16Data[i];
+        // Proper PCM16 to Float32 conversion
+        channelData[i] = sample < 0 ? sample / 32768.0 : sample / 32767.0;
       }
 
-      // Play the audio
+      // Create buffer source with gain control
       const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioContext.destination);
+      const gainNode = audioContext.createGain();
 
-      // When this chunk finishes, play the next one
+      source.buffer = audioBuffer;
+      source.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Set gain to prevent clipping
+      gainNode.gain.value = 0.9;
+
+      // Schedule playback at the next available time to avoid gaps
+      const currentTime = audioContext.currentTime;
+      const startTime = Math.max(currentTime + 0.01, nextPlayTimeRef.current);
+
+      source.start(startTime);
+
+      // Update next play time with small overlap to prevent gaps
+      nextPlayTimeRef.current = startTime + audioBuffer.duration - 0.01;
+
+      // Continue playing next chunk
       source.onended = () => {
         playNextAudio();
       };
 
-      source.start();
     } catch (error) {
       console.error("Error playing audio:", error);
       // Continue with next chunk even if this one failed
@@ -300,6 +347,7 @@ export default function TestAI() {
       // Clear audio queue
       audioQueueRef.current = [];
       isPlayingRef.current = false;
+      nextPlayTimeRef.current = 0;
     };
   }, []);
 
