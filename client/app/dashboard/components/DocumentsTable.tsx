@@ -7,6 +7,7 @@ interface DocumentsTableProps {
   setOpenMenuIndex: (id: string | null) => void;
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
+  onChatWithAI: (doc: Document) => void;
 }
 
 export default function DocumentsTable({
@@ -15,6 +16,7 @@ export default function DocumentsTable({
   setOpenMenuIndex,
   onDelete,
   onEdit,
+  onChatWithAI,
 }: DocumentsTableProps) {
   return (
     <div style={styles.tableContainer}>
@@ -47,6 +49,15 @@ export default function DocumentsTable({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                     Preview
+                  </button>
+                  <button
+                    onClick={() => onChatWithAI(doc)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded hover:bg-purple-700 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    Chat
                   </button>
                   <div className="relative">
                     <button

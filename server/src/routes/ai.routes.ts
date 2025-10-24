@@ -79,16 +79,29 @@ router.get('/realtime-test', async (req: Request, res: Response) => {
 function loadDocumentContext(textFileName: string): string | null {
   try {
     const filePath = path.join(TEXT_DIR, textFileName);
+    console.log(`[loadDocumentContext] Looking for file at: ${filePath}`);
+    console.log(`[loadDocumentContext] TEXT_DIR: ${TEXT_DIR}`);
 
     if (!fs.existsSync(filePath)) {
-      console.error(`Text file not found: ${textFileName}`);
+      console.error(`[loadDocumentContext] Text file not found: ${textFileName}`);
+      console.error(`[loadDocumentContext] Full path: ${filePath}`);
+
+      // List files in the directory to help debug
+      try {
+        const files = fs.readdirSync(TEXT_DIR);
+        console.log(`[loadDocumentContext] Available files in ${TEXT_DIR}:`, files);
+      } catch (e) {
+        console.error(`[loadDocumentContext] Could not read directory: ${TEXT_DIR}`);
+      }
+
       return null;
     }
 
     const content = fs.readFileSync(filePath, 'utf-8');
+    console.log(`[loadDocumentContext] Successfully loaded ${content.length} characters`);
     return content;
   } catch (error) {
-    console.error('Error loading document context:', error);
+    console.error('[loadDocumentContext] Error loading document context:', error);
     return null;
   }
 }
@@ -119,6 +132,8 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
   const textFileName = url.searchParams.get('textFileName');
   const documentName = url.searchParams.get('documentName') || 'Unknown Document';
 
+  console.log(`[${modeLabel}] Request params:`, { textFileName, documentName });
+
   // Load document context if provided (optional)
   let documentContext = '';
   if (textFileName) {
@@ -126,22 +141,56 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
     if (content) {
       documentContext = content;
       console.log(`[${modeLabel}] Loaded document: ${textFileName} (${content.length} chars)`);
+    } else {
+      console.error(`[${modeLabel}] Failed to load document: ${textFileName}`);
     }
+  } else {
+    console.log(`[${modeLabel}] No textFileName provided - general chat mode`);
   }
 
-  // Build system instructions
+  // Build system instructions following OpenAI Realtime prompting guide
   let instructions = 'You are a helpful AI assistant.';
   if (documentContext) {
-    instructions = `You are an AI assistant helping users understand and analyze documents.
+    instructions = `# Role & Objective
+You are an expert document analysis assistant. Your primary goal is to help users deeply understand and extract insights from their documents. Success means providing accurate, relevant, and actionable information based solely on the document content.
 
-Document Context:
+# Personality & Tone
+- Speak clearly and conversationally
+- Be professional yet approachable
+- Show confidence in your knowledge of the document
+- Use natural pauses and varied inflection
+- Avoid robotic or repetitive phrasing - vary your responses
+
+# Context
+You have full access to the following document:
+
 ---
-Title: ${documentName}
-Content:
+DOCUMENT TITLE: ${documentName}
+
+DOCUMENT CONTENT:
 ${documentContext}
 ---
 
-Answer the user's questions about this document. Be concise, accurate, and cite specific parts of the document when relevant.`;
+# Instructions / Rules
+- ALWAYS base your answers on the document content provided above
+- Cite specific sections, quotes, or details from the document when answering
+- If asked about something NOT in the document, clearly state: "That information is not mentioned in this document"
+- Keep responses concise but complete - aim for clarity over length
+- If you're unsure about an interpretation, acknowledge it and offer the most likely meaning
+- NEVER invent or assume information that isn't in the document
+- When summarizing, capture key points without excessive detail
+- Use bullet points or structured formats when listing multiple items
+
+# Conversation Flow
+1. First interaction: Acknowledge the document and offer to help
+2. For questions: Answer directly, then offer related insights if relevant
+3. For follow-ups: Build on previous context to maintain conversation coherence
+4. If user seems satisfied: Ask if there's anything else about the document they'd like to explore
+
+# Safety & Escalation
+- If asked to perform actions outside document analysis (like writing code, accessing external info), politely redirect to the document content
+- If document contains sensitive/personal information, acknowledge it professionally without dwelling on it
+- Stay focused on helping users understand THIS specific document`;
   }
 
   try {
@@ -158,6 +207,8 @@ Answer the user's questions about this document. Be concise, accurate, and cite 
 
     openaiWs.on('open', () => {
       console.log(`[${modeLabel}] Connected to OpenAI`);
+      console.log(`[${modeLabel}] Has document context:`, !!documentContext);
+      console.log(`[${modeLabel}] Instructions length:`, instructions.length);
 
       // Configure session based on modality
       const sessionConfig: any = {

@@ -10,6 +10,7 @@ export interface Document {
   status: "Draft" | "Completed";
   pdfUrl: string;
   signatures: any[];
+  textFileName?: string;
 }
 
 export function useDocuments() {
@@ -51,6 +52,7 @@ export function useDocuments() {
             status: "Completed" as const,
             pdfUrl: pdf.filename,
             signatures: [],
+            textFileName: pdf.textFile, // Add text file name for AI chat
           };
         });
 

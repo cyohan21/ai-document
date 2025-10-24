@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -8,6 +9,10 @@ interface Message {
 }
 
 export default function TestAI() {
+  const searchParams = useSearchParams();
+  const documentName = searchParams.get('documentName');
+  const textFileName = searchParams.get('textFileName');
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -30,7 +35,13 @@ export default function TestAI() {
   const connect = () => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
     const wsUrl = API_URL.replace("http", "ws");
-    const url = `${wsUrl}/api/ai/voice`;
+
+    // Add document context parameters if available
+    const params = new URLSearchParams();
+    if (textFileName) params.append('textFileName', textFileName);
+    if (documentName) params.append('documentName', documentName);
+
+    const url = `${wsUrl}/api/ai/voice${params.toString() ? `?${params.toString()}` : ''}`;
 
     addMessage("system", `Connecting to ${url}...`);
 
@@ -354,7 +365,12 @@ export default function TestAI() {
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">OpenAI Realtime API - Voice Chat</h1>
+        <h1 className="text-3xl font-bold mb-2">OpenAI Realtime API - Voice Chat</h1>
+        {documentName && (
+          <p className="text-gray-600 mb-6">
+            Chatting about: <span className="font-semibold">{documentName}</span>
+          </p>
+        )}
 
         {/* Connection Controls */}
         <div className="bg-white rounded-lg p-6 mb-6 shadow">

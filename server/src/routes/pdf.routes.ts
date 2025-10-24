@@ -147,11 +147,19 @@ router.get('/list', (req: Request, res: Response) => {
     const pdfFiles = files.filter(file => file.endsWith('.pdf')).map(filename => {
       const filePath = path.join(PDF_DIR, filename);
       const stats = fs.statSync(filePath);
+
+      // Derive text file name from PDF filename
+      // Format: "filename-timestamp.pdf" -> "filename-timestamp.txt"
+      const textFileName = filename.replace('.pdf', '.txt');
+      const textFilePath = path.join(TEXT_DIR, textFileName);
+      const hasTextFile = fs.existsSync(textFilePath);
+
       return {
         filename,
         size: stats.size,
         created: stats.birthtime,
         modified: stats.mtime,
+        textFile: hasTextFile ? textFileName : null,
       };
     });
 
