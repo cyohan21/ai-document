@@ -107,7 +107,7 @@ export default function Preview() {
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-5 flex items-center justify-between border-b border-gray-200">
         <a href="/dashboard" className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-linear-to-br from-purple-400 to-purple-600 flex items-center justify-center">
             <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/30"></div>
           </div>
           <span className="text-lg sm:text-xl font-semibold text-gray-900">Document AI</span>
@@ -172,7 +172,7 @@ export default function Preview() {
           {/* Document Info Card */}
           <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
             <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 rounded-lg flex items-center justify-center shrink-0">
                 <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
@@ -214,7 +214,7 @@ export default function Preview() {
                     : `Tap to expand - Preview`}
                 </p>
               </div>
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <svg
                   className={`w-5 h-5 sm:w-6 sm:h-6 text-gray-600 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`}
                   fill="none"

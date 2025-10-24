@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+package-lock.json
 .pnp
 .pnp.*
 .yarn/*
@@ -60,6 +61,7 @@ next-env.d.ts
 
 # Claude
 .claude/
+todo.txt
 
 # Storage directories (uploaded PDFs and extracted texts)
 server/storage/
