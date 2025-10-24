@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { styles } from './styles/upload.styles';
 
@@ -8,6 +8,15 @@ export default function Upload() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Check for API key on mount
+  useEffect(() => {
+    const apiKey = sessionStorage.getItem('openai_api_key');
+    if (!apiKey) {
+      // No API key found, redirect to API key page
+      router.push('/api-key');
+    }
+  }, [router]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -87,9 +87,22 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
   const documentText = url.searchParams.get('documentText');
   const documentName = url.searchParams.get('documentName') || 'Unknown Document';
 
+  // Detailed logging for debugging
+  console.log(`\n[${modeLabel}] ========== CONNECTION ATTEMPT ==========`);
+  console.log(`[${modeLabel}] Request URL: ${request.url}`);
+  console.log(`[${modeLabel}] API Key received: ${apiKey ? 'YES' : 'NO'}`);
+  if (apiKey) {
+    console.log(`[${modeLabel}] API Key length: ${apiKey.length}`);
+    console.log(`[${modeLabel}] API Key starts with: ${apiKey.substring(0, 8)}...`);
+    console.log(`[${modeLabel}] API Key ends with: ...${apiKey.substring(apiKey.length - 8)}`);
+    console.log(`[${modeLabel}] API Key format check: starts with 'sk-' = ${apiKey.startsWith('sk-')}`);
+  }
+  console.log(`[${modeLabel}] Document: ${documentName}`);
+  console.log(`[${modeLabel}] ===========================================\n`);
+
   // Validate API key is provided
   if (!apiKey) {
-    console.error(`[${modeLabel}] No API key provided`);
+    console.error(`[${modeLabel}] ❌ ERROR: No API key provided`);
     clientWs.send(JSON.stringify({
       type: 'error',
       message: 'OpenAI API key not provided. Please enter your API key to continue.',
@@ -101,7 +114,8 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
 
   // Validate API key format
   if (!apiKey.startsWith('sk-')) {
-    console.error(`[${modeLabel}] Invalid OpenAI API key format`);
+    console.error(`[${modeLabel}] ❌ ERROR: Invalid OpenAI API key format`);
+    console.error(`[${modeLabel}] Received key: "${apiKey.substring(0, 20)}..."`);
     clientWs.send(JSON.stringify({
       type: 'error',
       message: 'Invalid OpenAI API key format. API keys should start with "sk-".',
@@ -110,6 +124,8 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
     clientWs.close();
     return;
   }
+
+  console.log(`[${modeLabel}] ✅ API Key validation passed`);
 
   console.log(`[${modeLabel}] Request params:`, {
     documentName,

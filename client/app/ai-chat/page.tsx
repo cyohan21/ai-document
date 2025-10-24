@@ -13,6 +13,9 @@ export default function TestText() {
   const documentName = searchParams.get('documentName');
   const textFileName = searchParams.get('textFileName');
 
+  // Build the voice chat URL with query params
+  const voiceChatUrl = `/ai-voice${documentName ? `?documentName=${encodeURIComponent(documentName)}` : ''}`;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -195,24 +198,24 @@ export default function TestText() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
-      <div className="border-b border-gray-200 px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-gray-900">ChatGPT</h1>
+      <div className="border-b border-gray-200 px-3 sm:px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-semibold text-gray-900 whitespace-nowrap">Text Chat</h1>
             {documentName && (
-              <span className="text-sm text-gray-500">• {documentName}</span>
+              <span className="text-xs sm:text-sm text-gray-500 truncate hidden xs:inline">• {documentName}</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <a
-              href="/ai-chat"
-              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              href={voiceChatUrl}
+              className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
             >
-              Voice Chat
+              Voice
             </a>
             <a
               href="/dashboard"
-              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
             >
               Dashboard
             </a>

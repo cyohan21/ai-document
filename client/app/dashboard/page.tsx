@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { styles } from './styles/dashboard.styles';
 import { useDocuments, Document } from './hooks/useDocuments';
 import Navigation from './components/Navigation';
 import UploadButton from './components/UploadButton';
-import FilterBar from './components/FilterBar';
 import DocumentsTable from './components/DocumentsTable';
 import Pagination from './components/Pagination';
 import { useRouter } from 'next/navigation';
@@ -26,16 +24,9 @@ export default function Dashboard() {
   const [selectedChatMode, setSelectedChatMode] = useState<'text' | 'voice' | null>(null);
 
   const {
-    filteredDocuments,
     documents,
-    activeTab,
-    setActiveTab,
-    searchQuery,
-    setSearchQuery,
     openMenuIndex,
     setOpenMenuIndex,
-    completedCount,
-    draftCount,
     handleFileUpload,
     handleDeleteDocument,
     handleEditDocument,
@@ -66,28 +57,28 @@ export default function Dashboard() {
   };
 
   return (
-    <div style={styles.container}>
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
 
-      <div style={styles.mainContent}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
         {/* AI Chat Section */}
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 mb-8 border border-purple-100 shadow-sm">
-          <div className="mb-4">
-            <h3 className="text-xl font-bold text-gray-800">Chat with AI Assistant</h3>
-            <p className="text-sm text-gray-600">Ask questions about your documents</p>
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 border border-purple-100 shadow-sm">
+          <div className="mb-3 sm:mb-4">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800">Chat with AI Assistant</h3>
+            <p className="text-xs sm:text-sm text-gray-600">Ask questions about your documents</p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {/* Document Selector */}
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Document</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Select Document</label>
               <select
                 value={selectedDocument?.id || ''}
                 onChange={(e) => {
                   const doc = documents.find(d => d.id === e.target.value);
                   setSelectedDocument(doc || null);
                 }}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
               >
                 <option value="">Choose a document...</option>
                 {documents.map(doc => (
@@ -97,7 +88,7 @@ export default function Dashboard() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 sm:items-end">
+            <div className="flex gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   if (!selectedDocument) return;
@@ -105,12 +96,13 @@ export default function Dashboard() {
                   navigateToChat();
                 }}
                 disabled={!selectedDocument}
-                className="flex-1 sm:flex-initial px-6 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-4 sm:px-6 py-2 sm:py-2.5 text-sm sm:text-base bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5 sm:gap-2"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
-                Text Chat
+                <span className="hidden xs:inline">Text Chat</span>
+                <span className="xs:hidden">Text</span>
               </button>
               <button
                 onClick={() => {
@@ -119,34 +111,26 @@ export default function Dashboard() {
                   navigateToChat();
                 }}
                 disabled={!selectedDocument}
-                className="flex-1 sm:flex-initial px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-4 sm:px-6 py-2 sm:py-2.5 text-sm sm:text-base bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5 sm:gap-2"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
-                Voice Chat
+                <span className="hidden xs:inline">Voice Chat</span>
+                <span className="xs:hidden">Voice</span>
               </button>
             </div>
           </div>
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 style={styles.documentsTitle}>Documents</h2>
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Documents</h2>
             <UploadButton onFileUpload={handleFileUpload} />
           </div>
 
-          <FilterBar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            completedCount={completedCount}
-            draftCount={draftCount}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-          />
-
           <DocumentsTable
-            documents={filteredDocuments}
+            documents={documents}
             openMenuIndex={openMenuIndex}
             setOpenMenuIndex={setOpenMenuIndex}
             onDelete={handleDeleteDocument}
@@ -154,19 +138,19 @@ export default function Dashboard() {
             onRowClick={handleRowClick}
           />
 
-          <Pagination totalResults={filteredDocuments.length} />
+          <Pagination totalResults={documents.length} />
         </div>
       </div>
 
       {/* Chat Modal */}
       {showChatModal && selectedDocument && (
         <div
-          className="fixed inset-0 flex items-center justify-center z-50"
+          className="fixed inset-0 flex items-center justify-center z-50 p-3 sm:p-4"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
           onClick={() => setShowChatModal(false)}
         >
           <div
-            className="bg-white rounded-xl max-w-md w-full mx-4"
+            className="bg-white rounded-xl max-w-md w-full"
             style={{
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
               backdropFilter: 'blur(10px)'
@@ -174,28 +158,28 @@ export default function Dashboard() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="px-5 pt-5 pb-3">
-              <h2 className="text-base font-normal text-gray-900">
+            <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-2 sm:pb-3">
+              <h2 className="text-sm sm:text-base font-normal text-gray-900 leading-snug">
                 Chat with AI about "{selectedDocument.title}"
               </h2>
             </div>
 
             {/* Options */}
-            <div className="px-5 pb-2">
+            <div className="px-4 sm:px-5 pb-2">
               {/* Text Chat Option */}
-              <div className="pb-3 border-b border-gray-200">
+              <div className="pb-2 sm:pb-3 border-b border-gray-200">
                 <button
                   onClick={() => setSelectedChatMode('text')}
                   className={`w-full text-left group py-1 rounded-lg transition-colors ${
                     selectedChatMode === 'text' ? 'bg-gray-50' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-start gap-3 px-2 py-1">
+                  <div className="flex items-start gap-2 sm:gap-3 px-2 py-1">
                     <div className="flex-shrink-0 mt-0.5">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                      <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center ${
                         selectedChatMode === 'text' ? 'bg-purple-100' : 'bg-gray-100'
                       }`}>
-                        <svg className={`w-3.5 h-3.5 ${
+                        <svg className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 ${
                           selectedChatMode === 'text' ? 'text-purple-600' : 'text-gray-700'
                         }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -203,7 +187,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900 text-sm mb-0.5 group-hover:text-gray-700">
+                      <div className="font-medium text-gray-900 text-xs sm:text-sm mb-0.5 group-hover:text-gray-700">
                         Text Chat
                       </div>
                       <div className="text-xs text-gray-600 leading-normal">
@@ -215,19 +199,19 @@ export default function Dashboard() {
               </div>
 
               {/* Voice Chat Option */}
-              <div className="pt-3 pb-3 border-b border-gray-200">
+              <div className="pt-2 sm:pt-3 pb-2 sm:pb-3 border-b border-gray-200">
                 <button
                   onClick={() => setSelectedChatMode('voice')}
                   className={`w-full text-left group py-1 rounded-lg transition-colors ${
                     selectedChatMode === 'voice' ? 'bg-gray-50' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-start gap-3 px-2 py-1">
+                  <div className="flex items-start gap-2 sm:gap-3 px-2 py-1">
                     <div className="flex-shrink-0 mt-0.5">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                      <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center ${
                         selectedChatMode === 'voice' ? 'bg-blue-100' : 'bg-gray-100'
                       }`}>
-                        <svg className={`w-3.5 h-3.5 ${
+                        <svg className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 ${
                           selectedChatMode === 'voice' ? 'text-blue-600' : 'text-gray-700'
                         }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -235,7 +219,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900 text-sm mb-0.5 group-hover:text-gray-700">
+                      <div className="font-medium text-gray-900 text-xs sm:text-sm mb-0.5 group-hover:text-gray-700">
                         Voice Chat
                       </div>
                       <div className="text-xs text-gray-600 leading-normal">
@@ -248,17 +232,17 @@ export default function Dashboard() {
             </div>
 
             {/* Footer Buttons */}
-            <div className="px-5 py-4 flex justify-end gap-2">
+            <div className="px-4 sm:px-5 py-3 sm:py-4 flex justify-end gap-2">
               <button
                 onClick={() => setShowChatModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Not now
               </button>
               <button
                 onClick={navigateToChat}
                 disabled={!selectedChatMode}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors ${
                   selectedChatMode
                     ? 'text-white bg-black hover:bg-gray-800'
                     : 'text-gray-400 bg-gray-200 cursor-not-allowed'

@@ -18,8 +18,6 @@ export interface Document {
 export function useDocuments() {
   const router = useRouter();
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [activeTab, setActiveTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [openMenuIndex, setOpenMenuIndex] = useState<string | null>(null);
 
   useEffect(() => {
@@ -176,37 +174,10 @@ export function useDocuments() {
     }
   };
 
-  const completedCount = documents.filter(doc => doc.status === "Completed").length;
-  const draftCount = documents.filter(doc => doc.status === "Draft").length;
-
-  const filteredDocuments = documents.filter((doc) => {
-    let matchesTab = true;
-    if (activeTab === "completed") matchesTab = doc.status === "Completed";
-    if (activeTab === "draft") matchesTab = doc.status === "Draft";
-
-    let matchesSearch = true;
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase();
-      matchesSearch =
-        doc.title.toLowerCase().includes(query) ||
-        doc.sender.toLowerCase().includes(query) ||
-        doc.recipient.toLowerCase().includes(query);
-    }
-
-    return matchesTab && matchesSearch;
-  });
-
   return {
     documents,
-    filteredDocuments,
-    activeTab,
-    setActiveTab,
-    searchQuery,
-    setSearchQuery,
     openMenuIndex,
     setOpenMenuIndex,
-    completedCount,
-    draftCount,
     handleFileUpload,
     handleDeleteDocument,
     handleEditDocument,

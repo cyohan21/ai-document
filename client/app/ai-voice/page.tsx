@@ -13,6 +13,9 @@ export default function TestAI() {
   const documentName = searchParams.get('documentName');
   const textFileName = searchParams.get('textFileName');
 
+  // Build the text chat URL with query params
+  const textChatUrl = `/ai-chat${documentName ? `?documentName=${encodeURIComponent(documentName)}` : ''}`;
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -184,7 +187,7 @@ export default function TestAI() {
       setTimeout(() => {
         if (confirm(`${errorMsg}\n\nWould you like to try Text Chat instead?`)) {
           const params = new URLSearchParams(window.location.search);
-          window.location.href = `/ai-voice?${params.toString()}`;
+          window.location.href = `/ai-chat?${params.toString()}`;
         }
       }, 500);
     };
@@ -295,13 +298,27 @@ export default function TestAI() {
     }
 
     try {
-      // Check if mediaDevices is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Your browser does not support microphone access. Please use a modern browser like Chrome, Firefox, or Edge.');
+      // Check if mediaDevices is supported (works for all modern browsers including Safari)
+      if (!navigator.mediaDevices?.getUserMedia) {
+        // Fallback for older browsers
+        const getUserMedia = (navigator as any).getUserMedia ||
+                            (navigator as any).webkitGetUserMedia ||
+                            (navigator as any).mozGetUserMedia ||
+                            (navigator as any).msGetUserMedia;
+
+        if (!getUserMedia) {
+          throw new Error('Your browser does not support microphone access. Please update your browser or use Chrome, Firefox, Safari, or Edge.');
+        }
       }
 
       // Request microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
       audioStreamRef.current = stream;
       setMicrophoneError(null);
 
@@ -360,9 +377,14 @@ export default function TestAI() {
 
       // Offer fallback to text chat
       setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        const chatUrl = `/ai-chat?${params.toString()}`;
+
         if (confirm(`${errorMessage}\n\nWould you like to switch to Text Chat instead?`)) {
-          const params = new URLSearchParams(window.location.search);
-          window.location.href = `/ai-voice?${params.toString()}`;
+          console.log('Redirecting to:', chatUrl);
+          window.location.href = chatUrl;
+        } else {
+          console.log('User declined redirect to text chat');
         }
       }, 500);
     }
@@ -488,24 +510,24 @@ export default function TestAI() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
-      <div className="border-b border-gray-200 px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-gray-900">Voice Chat</h1>
+      <div className="border-b border-gray-200 px-3 sm:px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-semibold text-gray-900 whitespace-nowrap">Voice Chat</h1>
             {documentName && (
-              <span className="text-sm text-gray-500">• {documentName}</span>
+              <span className="text-xs sm:text-sm text-gray-500 truncate hidden xs:inline">• {documentName}</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <a
-              href="/ai-voice"
-              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              href={textChatUrl}
+              className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
             >
-              Text Chat
+              Text
             </a>
             <a
               href="/dashboard"
-              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
             >
               Dashboard
             </a>
