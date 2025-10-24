@@ -20,6 +20,25 @@ export default function TestText() {
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load messages from localStorage on mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('textChatMessages');
+    if (savedMessages) {
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (error) {
+        console.error('Failed to load messages from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('textChatMessages', JSON.stringify(messages));
+    }
+  }, [messages]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -140,78 +159,93 @@ export default function TestText() {
     }));
   };
 
+  // Auto-connect on page load
   useEffect(() => {
+    connect();
     return () => disconnect();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2">OpenAI Realtime API - Text Chat</h1>
-        {documentName && (
-          <p className="text-gray-600 mb-6">
-            Chatting about: <span className="font-semibold">{documentName}</span>
-          </p>
-        )}
+  // Clear chat logs when window closes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      localStorage.removeItem('textChatMessages');
+    };
 
-        {/* Connection Controls */}
-        <div className="bg-white rounded-lg p-6 mb-6 shadow">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}></div>
-              <span className="font-semibold">{isConnected ? "Connected (Text Only)" : "Disconnected"}</span>
-            </div>
-            <button
-              onClick={isConnected ? disconnect : connect}
-              className={`px-4 py-2 rounded-lg font-semibold ${
-                isConnected
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-green-500 hover:bg-green-600 text-white"
-              }`}
-            >
-              {isConnected ? "Disconnect" : "Connect"}
-            </button>
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Header */}
+      <div className="border-b border-gray-200 px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold text-gray-900">ChatGPT</h1>
+            {documentName && (
+              <span className="text-sm text-gray-500">• {documentName}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <a
-              href="/test-ai"
-              className="ml-auto px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-semibold"
+              href="/ai-chat"
+              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              Switch to Voice Chat →
+              Voice Chat
+            </a>
+            <a
+              href="/dashboard"
+              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Dashboard
             </a>
           </div>
         </div>
+      </div>
 
-        {/* Messages */}
-        <div className="bg-white rounded-lg shadow mb-6 h-96 overflow-y-auto p-6">
-          {messages.length === 0 && (
-            <div className="text-center text-gray-400 mt-20">
-              <p>No messages yet. Connect and send a message!</p>
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto flex items-center">
+        <div className="max-w-3xl mx-auto px-4 py-8 w-full">
+          {messages.filter(m => m.role !== "system").length === 0 && (
+            <div className="text-center text-gray-400">
+              <p className="text-lg">What are you working on?</p>
             </div>
           )}
 
-          {messages.map((msg, i) => (
-            <div key={i} className={`mb-4 ${msg.role === "user" ? "text-right" : ""}`}>
-              <div
-                className={`inline-block px-4 py-2 rounded-lg max-w-[80%] ${
-                  msg.role === "user"
-                    ? "bg-blue-500 text-white"
-                    : msg.role === "system"
-                    ? "bg-gray-200 text-gray-600 text-sm"
-                    : "bg-gray-300 text-black"
-                }`}
-              >
-                <div className="text-xs font-bold mb-1">{msg.role.toUpperCase()}</div>
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+          {messages.filter(m => m.role !== "system").map((msg, i) => (
+            <div key={i} className="mb-8">
+              <div className="flex gap-4">
+                {msg.role === "user" ? (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-xs font-semibold text-white">
+                    AI
+                  </div>
+                )}
+                <div className="flex-1 pt-1">
+                  <div className="text-gray-900 whitespace-pre-wrap leading-relaxed">
+                    {msg.content}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
 
           {isLoading && (
-            <div className="mb-4">
-              <div className="inline-block px-4 py-2 rounded-lg bg-gray-300">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+            <div className="mb-8">
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-xs font-semibold text-white">
+                  AI
+                </div>
+                <div className="flex-1 pt-1 flex items-center">
+                  <div className="w-3 h-3 bg-black rounded-full" style={{ animation: 'pulseScale 1s ease-in-out infinite' }}></div>
                 </div>
               </div>
             </div>
@@ -219,29 +253,45 @@ export default function TestText() {
 
           <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        {/* Input */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex gap-4">
+      {/* Input Area */}
+      <div className="border-t border-gray-200 bg-white">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="relative">
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={isConnected ? "Type a message..." : "Connect first..."}
+              onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+              placeholder="What are you working on?"
               disabled={!isConnected || isLoading}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:border-gray-400 disabled:bg-gray-50 disabled:text-gray-400"
+              autoFocus
             />
             <button
               onClick={sendMessage}
               disabled={!isConnected || !inputValue.trim() || isLoading}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg bg-black text-white disabled:bg-gray-200 disabled:text-gray-400 hover:bg-gray-800 transition-colors"
             >
-              Send
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
             </button>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes pulseScale {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.5);
+          }
+        }
+      `}</style>
     </div>
   );
 }

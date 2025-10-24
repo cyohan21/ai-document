@@ -17,7 +17,9 @@ export default function TestAI() {
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [currentAIMessage, setCurrentAIMessage] = useState<string>("");
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -27,6 +29,26 @@ export default function TestAI() {
   const isPlayingRef = useRef(false);
   const playbackContextRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef(0);
+  const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
+
+  // Load messages from localStorage on mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem('voiceChatMessages');
+    if (savedMessages) {
+      try {
+        setMessages(JSON.parse(savedMessages));
+      } catch (error) {
+        console.error('Failed to load messages from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('voiceChatMessages', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -47,10 +69,13 @@ export default function TestAI() {
 
     const ws = new WebSocket(url);
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       console.log("Connected!");
       setIsConnected(true);
       addMessage("system", "Connected to AI (Voice Mode)");
+
+      // Start recording immediately
+      await startRecording();
     };
 
     ws.onmessage = async (event) => {
@@ -87,22 +112,19 @@ export default function TestAI() {
         } else if (data.type === "response.audio.delta") {
           // Queue audio chunk for sequential playback
           if (data.delta) {
+            setIsAISpeaking(true);
             queueAudio(data.delta);
           }
         } else if (data.type === "response.audio_transcript.delta") {
-          // Show transcript in chat
+          // Show transcript in real-time as AI speaks
           if (data.delta) {
-            setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (last && last.role === "assistant") {
-                return [
-                  ...prev.slice(0, -1),
-                  { ...last, content: last.content + data.delta }
-                ];
-              } else {
-                return [...prev, { role: "assistant", content: data.delta }];
-              }
-            });
+            setCurrentAIMessage((prev) => prev + data.delta);
+          }
+        } else if (data.type === "response.audio_transcript.done") {
+          // When transcript is complete, add it to messages and clear current
+          if (currentAIMessage) {
+            addMessage("assistant", currentAIMessage);
+            setCurrentAIMessage("");
           }
         } else if (data.type === "conversation.item.input_audio_transcription.completed") {
           // Show user's audio transcription
@@ -141,11 +163,48 @@ export default function TestAI() {
   };
 
   const disconnect = () => {
+    // Stop AI speech playback
+    setIsAISpeaking(false);
+    audioQueueRef.current = []; // Clear audio queue
+    isPlayingRef.current = false;
+
+    // Close playback context to stop any ongoing audio
+    if (playbackContextRef.current) {
+      playbackContextRef.current.close();
+      playbackContextRef.current = null;
+    }
+
+    // Reset playback timing
+    nextPlayTimeRef.current = 0;
+
+    // Stop recording
+    if (audioProcessorRef.current) {
+      audioProcessorRef.current.disconnect();
+      audioProcessorRef.current = null;
+    }
+
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    // Close WebSocket
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
+
     setIsConnected(false);
+    setIsMuted(false);
+  };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
   };
 
   const addMessage = (role: "user" | "assistant" | "system", content: string) => {
@@ -199,8 +258,11 @@ export default function TestAI() {
       source.connect(processor);
       processor.connect(audioContext.destination);
 
+      audioProcessorRef.current = processor;
+
       processor.onaudioprocess = (e) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+        if (isMuted) return; // Don't send audio when muted
 
         const inputData = e.inputBuffer.getChannelData(0);
 
@@ -220,44 +282,12 @@ export default function TestAI() {
           audio: base64
         }));
       };
-
-      setIsRecording(true);
-      addMessage("system", "Recording... Speak now!");
     } catch (error) {
       console.error("Error starting recording:", error);
       addMessage("system", "Failed to access microphone");
     }
   };
 
-  const stopRecording = () => {
-    // Stop all audio tracks
-    if (audioStreamRef.current) {
-      audioStreamRef.current.getTracks().forEach(track => track.stop());
-      audioStreamRef.current = null;
-    }
-
-    // Close audio context
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-
-    // Commit the audio buffer
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: "input_audio_buffer.commit"
-      }));
-
-      wsRef.current.send(JSON.stringify({
-        type: "response.create",
-        response: { modalities: ["text", "audio"] }
-      }));
-    }
-
-    setIsRecording(false);
-    addMessage("system", "Recording stopped. Processing...");
-    setIsLoading(true);
-  };
 
   // Add audio chunk to queue
   const queueAudio = (base64Audio: string) => {
@@ -286,6 +316,7 @@ export default function TestAI() {
   const playNextAudio = async () => {
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
+      setIsAISpeaking(false);
       return;
     }
 
@@ -347,7 +378,6 @@ export default function TestAI() {
   useEffect(() => {
     return () => {
       disconnect();
-      stopRecording();
 
       // Clean up playback context
       if (playbackContextRef.current) {
@@ -362,134 +392,210 @@ export default function TestAI() {
     };
   }, []);
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-2">OpenAI Realtime API - Voice Chat</h1>
-        {documentName && (
-          <p className="text-gray-600 mb-6">
-            Chatting about: <span className="font-semibold">{documentName}</span>
-          </p>
-        )}
+  // Clear chat logs when window closes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      localStorage.removeItem('voiceChatMessages');
+    };
 
-        {/* Connection Controls */}
-        <div className="bg-white rounded-lg p-6 mb-6 shadow">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}></div>
-              <span className="font-semibold">{isConnected ? "Connected (Voice + Text)" : "Disconnected"}</span>
-            </div>
-            <button
-              onClick={isConnected ? disconnect : connect}
-              className={`px-4 py-2 rounded-lg font-semibold ${
-                isConnected
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-green-500 hover:bg-green-600 text-white"
-              }`}
-            >
-              {isConnected ? "Disconnect" : "Connect"}
-            </button>
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Header */}
+      <div className="border-b border-gray-200 px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold text-gray-900">Voice Chat</h1>
+            {documentName && (
+              <span className="text-sm text-gray-500">• {documentName}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <a
-              href="/test-text"
-              className="ml-auto px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-semibold"
+              href="/ai-voice"
+              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              Switch to Text Only →
+              Text Chat
+            </a>
+            <a
+              href="/dashboard"
+              className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Dashboard
             </a>
           </div>
         </div>
+      </div>
 
-        {/* Messages */}
-        <div className="bg-white rounded-lg shadow mb-6 h-96 overflow-y-auto p-6">
-          {messages.length === 0 && (
-            <div className="text-center text-gray-400 mt-20">
-              <p>No messages yet. Connect and send a message!</p>
+      {/* Main Content - Centered Voice Interface */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          {/* Voice Circle */}
+          <div className="mb-8 flex justify-center">
+            <div
+              className={`w-48 h-48 rounded-full bg-purple-600 flex items-center justify-center transition-all duration-300 ${
+                isMuted ? 'opacity-50' : ''
+              }`}
+              style={{
+                animation: isConnected && !isAISpeaking
+                  ? 'breathing 3s ease-in-out infinite'
+                  : isAISpeaking
+                    ? 'erraticHeartbeat 1.2s ease-in-out infinite'
+                    : 'none'
+              }}
+            >
             </div>
-          )}
+          </div>
 
-          {messages.map((msg, i) => (
-            <div key={i} className={`mb-4 ${msg.role === "user" ? "text-right" : ""}`}>
-              <div
-                className={`inline-block px-4 py-2 rounded-lg max-w-[80%] ${
-                  msg.role === "user"
-                    ? "bg-blue-500 text-white"
-                    : msg.role === "system"
-                    ? "bg-gray-200 text-gray-600 text-sm"
-                    : "bg-gray-300 text-black"
-                }`}
+          {/* Status Text */}
+          <p className="text-gray-600 mb-8">
+            {!isConnected ? "Not connected" : isMuted ? "Muted" : isAISpeaking ? "AI is speaking..." : "Listening..."}
+          </p>
+
+          {/* Control Buttons */}
+          <div className="flex justify-center gap-4">
+            {!isConnected ? (
+              <button
+                onClick={connect}
+                className="px-6 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
               >
-                <div className="text-xs font-bold mb-1">{msg.role.toUpperCase()}</div>
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-              </div>
-            </div>
-          ))}
+                Connect
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={toggleMute}
+                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+                    isMuted
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                  title={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted ? (
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                      <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-1.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={disconnect}
+                  className="w-14 h-14 rounded-full flex items-center justify-center bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                  title="Stop Connection"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </>
+            )}
+          </div>
 
-          {isLoading && (
-            <div className="mb-4">
-              <div className="inline-block px-4 py-2 rounded-lg bg-gray-300">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                </div>
+          {/* Transcript Display */}
+          {(messages.filter(m => m.role !== "system").length > 0 || currentAIMessage) && (
+            <div className="mt-12 max-w-2xl mx-auto">
+              <div className="bg-gray-50 rounded-lg p-6 max-h-96 overflow-y-auto">
+                {messages.filter(m => m.role !== "system").map((msg, i) => (
+                  <div key={i} className="mb-4 last:mb-0 transcription-text">
+                    <div className="text-xs font-medium text-gray-500 mb-1">
+                      {msg.role === "user" ? "You" : "AI"}
+                    </div>
+                    <div className="text-gray-900 text-sm leading-relaxed">
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {/* Show current AI message being spoken in real-time */}
+                {currentAIMessage && (
+                  <div className="mb-4 last:mb-0 transcription-text">
+                    <div className="text-xs font-medium text-gray-500 mb-1">
+                      AI
+                    </div>
+                    <div className="text-gray-900 text-sm leading-relaxed">
+                      {currentAIMessage}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex gap-4 mb-4">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={isConnected ? "Type a message..." : "Connect first..."}
-              disabled={!isConnected || isLoading || isRecording}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!isConnected || !inputValue.trim() || isLoading || isRecording}
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold"
-            >
-              Send
-            </button>
-          </div>
-
-          <div className="text-center">
-            <div className="text-sm text-gray-500 mb-2">Or speak to the AI</div>
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={!isConnected || isLoading}
-              className={`px-8 py-4 rounded-full font-semibold text-white transition-all ${
-                isRecording
-                  ? "bg-red-500 hover:bg-red-600 animate-pulse"
-                  : "bg-green-500 hover:bg-green-600"
-              } disabled:bg-gray-300 disabled:cursor-not-allowed`}
-            >
-              {isRecording ? (
-                <span className="flex items-center gap-2">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <rect x="6" y="6" width="8" height="8" />
-                  </svg>
-                  Stop Recording
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-                    <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-1.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
-                  </svg>
-                  {isLoading ? "Processing..." : "Hold to Talk"}
-                </span>
-              )}
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Hidden message anchor */}
+      <div ref={messagesEndRef} />
+
+      <style jsx>{`
+        @keyframes erraticHeartbeat {
+          0% {
+            transform: scale(1);
+          }
+          14% {
+            transform: scale(1.1);
+          }
+          28% {
+            transform: scale(1);
+          }
+          42% {
+            transform: scale(1.1);
+          }
+          70% {
+            transform: scale(1);
+          }
+        }
+
+        @keyframes breathing {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.05);
+          }
+        }
+
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 0.3;
+          }
+          50% {
+            opacity: 0.6;
+          }
+        }
+
+        .transcription-text {
+          animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }

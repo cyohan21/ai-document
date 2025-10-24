@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AIChat from "./components/AIChat";
 
 export default function Preview() {
   const router = useRouter();
@@ -155,6 +154,12 @@ export default function Preview() {
               </p>
             </div>
             <div className="flex gap-3">
+              <a
+                href="/dashboard"
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+              >
+                Go to Dashboard
+              </a>
               <button
                 onClick={() => {
                   // Open the PDF in a new window from backend server
@@ -163,18 +168,12 @@ export default function Preview() {
                     window.open(`${API_URL}/api/pdf/view/${documentData.pdfFileName}`, '_blank');
                   }
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 View PDF
-              </button>
-              <button
-                onClick={() => router.push("/upload")}
-                className="px-4 py-2 text-gray-700 border-2 border-gray-300 rounded-lg hover:border-purple-500 hover:text-purple-700 transition-colors font-semibold"
-              >
-                Upload New
               </button>
             </div>
           </div>
@@ -277,34 +276,8 @@ export default function Preview() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-8 flex gap-4 justify-center">
-          <a
-            href="/dashboard"
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold shadow-sm"
-          >
-            Go to Dashboard
-          </a>
-          <button
-            onClick={() => router.push("/upload")}
-            className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:border-purple-500 hover:text-purple-700 transition-colors font-semibold"
-          >
-            Upload Another Document
-          </button>
-        </div>
       </main>
 
-      {/* AI Chat Component */}
-      {documentData && documentData.textFileName ? (
-        <AIChat
-          textFileName={documentData.textFileName}
-          documentName={documentData.fileName}
-        />
-      ) : (
-        <div className="fixed bottom-8 right-8 text-xs text-gray-500 bg-white p-2 rounded shadow">
-          {!documentData ? "Loading..." : "No document data"}
-        </div>
-      )}
     </div>
   );
 }
