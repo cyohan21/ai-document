@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AIChat from "./components/AIChat";
 
 export default function Preview() {
   const router = useRouter();
@@ -292,6 +293,18 @@ export default function Preview() {
           </button>
         </div>
       </main>
+
+      {/* AI Chat Component */}
+      {documentData && documentData.textFileName ? (
+        <AIChat
+          textFileName={documentData.textFileName}
+          documentName={documentData.fileName}
+        />
+      ) : (
+        <div className="fixed bottom-8 right-8 text-xs text-gray-500 bg-white p-2 rounded shadow">
+          {!documentData ? "Loading..." : "No document data"}
+        </div>
+      )}
     </div>
   );
 }

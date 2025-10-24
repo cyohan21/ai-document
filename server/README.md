@@ -22,7 +22,26 @@ This will install the following dependencies:
 - `cors` - CORS middleware
 - `multer` - File upload handling
 - `pdf-parse` - PDF text extraction
+- `openai` - OpenAI SDK for Realtime API
+- `ws` - WebSocket library
+- `dotenv` - Environment variable management
 - `typescript` - TypeScript support
+
+### Environment Variables
+
+Create a `.env` file in the server directory:
+
+```env
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-proj-your-api-key-here
+OPENAI_REALTIME_MODEL=gpt-4o-realtime-preview-2024-10-01
+OPENAI_CHAT_MODEL=gpt-4o-mini
+
+# Server Configuration
+PORT=5000
+```
+
+**Important:** Add your OpenAI API key to use the Realtime API features.
 
 ### Running the Server
 
@@ -121,6 +140,67 @@ Get a list of all uploaded PDFs.
     }
   ]
 }
+```
+
+## AI / Realtime API Endpoints
+
+### 5. Test Realtime API Connection
+**GET** `/api/ai/realtime-test`
+
+Test the OpenAI Realtime API connection.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Successfully connected to OpenAI Realtime API",
+  "model": "gpt-4o-realtime-preview-2024-10-01"
+}
+```
+
+### 6. Realtime API WebSocket
+**WebSocket** `ws://localhost:5000/api/ai/realtime`
+
+Connect to the OpenAI Realtime API with document context.
+
+**Query Parameters:**
+- `textFileName` - Text file to load as context (e.g., "document-1234567890.txt")
+- `documentName` - Display name for the document
+
+**Connection Flow:**
+1. Client connects to WebSocket with query parameters
+2. Server loads document context from storage
+3. Server establishes connection to OpenAI Realtime API
+4. Server configures session with document context in system prompt
+5. Messages are proxied bidirectionally between client and OpenAI
+
+**Example (JavaScript):**
+```javascript
+const ws = new WebSocket(
+  'ws://localhost:5000/api/ai/realtime?textFileName=doc-123.txt&documentName=MyDoc.pdf'
+);
+
+ws.onopen = () => {
+  console.log('Connected to Realtime API');
+};
+
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  console.log('Received:', message);
+};
+
+// Send message to OpenAI
+ws.send(JSON.stringify({
+  type: 'conversation.item.create',
+  item: {
+    type: 'message',
+    role: 'user',
+    content: [{ type: 'input_text', text: 'What is this document about?' }]
+  }
+}));
+
+// Request response
+ws.send(JSON.stringify({ type: 'response.create' }));
 ```
 
 ## Storage Structure
