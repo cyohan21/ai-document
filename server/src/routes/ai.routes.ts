@@ -1,12 +1,7 @@
 import express, { Request, Response } from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
-import fs from 'fs';
-import path from 'path';
 
 const router = express.Router();
-
-// Storage directory for text files
-const TEXT_DIR = path.join(__dirname, '../../storage/texts');
 
 /**
  * GET /api/ai/realtime-test
@@ -74,39 +69,6 @@ router.get('/realtime-test', async (req: Request, res: Response) => {
 });
 
 /**
- * Helper function to load document context
- */
-function loadDocumentContext(textFileName: string): string | null {
-  try {
-    const filePath = path.join(TEXT_DIR, textFileName);
-    console.log(`[loadDocumentContext] Looking for file at: ${filePath}`);
-    console.log(`[loadDocumentContext] TEXT_DIR: ${TEXT_DIR}`);
-
-    if (!fs.existsSync(filePath)) {
-      console.error(`[loadDocumentContext] Text file not found: ${textFileName}`);
-      console.error(`[loadDocumentContext] Full path: ${filePath}`);
-
-      // List files in the directory to help debug
-      try {
-        const files = fs.readdirSync(TEXT_DIR);
-        console.log(`[loadDocumentContext] Available files in ${TEXT_DIR}:`, files);
-      } catch (e) {
-        console.error(`[loadDocumentContext] Could not read directory: ${TEXT_DIR}`);
-      }
-
-      return null;
-    }
-
-    const content = fs.readFileSync(filePath, 'utf-8');
-    console.log(`[loadDocumentContext] Successfully loaded ${content.length} characters`);
-    return content;
-  } catch (error) {
-    console.error('[loadDocumentContext] Error loading document context:', error);
-    return null;
-  }
-}
-
-/**
  * WebSocket endpoint for Realtime API
  * This will be upgraded to WebSocket by express-ws or similar
  */
@@ -117,35 +79,50 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
   const modeLabel = modality === 'text' ? 'Text Chat' : 'Voice Chat';
   console.log(`[${modeLabel}] Client connected`);
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  // Parse query parameters
+  const url = new URL(request.url, `http://${request.headers.host}`);
+
+  // Get API key from query parameter (ephemeral - provided by client)
+  const apiKey = url.searchParams.get('apiKey');
+  const documentText = url.searchParams.get('documentText');
+  const documentName = url.searchParams.get('documentName') || 'Unknown Document';
+
+  // Validate API key is provided
   if (!apiKey) {
+    console.error(`[${modeLabel}] No API key provided`);
     clientWs.send(JSON.stringify({
       type: 'error',
-      message: 'OpenAI API key not configured'
+      message: 'OpenAI API key not provided. Please enter your API key to continue.',
+      code: 'NO_API_KEY'
     }));
     clientWs.close();
     return;
   }
 
-  // Parse query parameters
-  const url = new URL(request.url, `http://${request.headers.host}`);
-  const textFileName = url.searchParams.get('textFileName');
-  const documentName = url.searchParams.get('documentName') || 'Unknown Document';
+  // Validate API key format
+  if (!apiKey.startsWith('sk-')) {
+    console.error(`[${modeLabel}] Invalid OpenAI API key format`);
+    clientWs.send(JSON.stringify({
+      type: 'error',
+      message: 'Invalid OpenAI API key format. API keys should start with "sk-".',
+      code: 'INVALID_API_KEY'
+    }));
+    clientWs.close();
+    return;
+  }
 
-  console.log(`[${modeLabel}] Request params:`, { textFileName, documentName });
+  console.log(`[${modeLabel}] Request params:`, {
+    documentName,
+    documentTextLength: documentText ? documentText.length : 0
+  });
 
-  // Load document context if provided (optional)
+  // Use document context from query parameter (directly from localStorage)
   let documentContext = '';
-  if (textFileName) {
-    const content = loadDocumentContext(textFileName);
-    if (content) {
-      documentContext = content;
-      console.log(`[${modeLabel}] Loaded document: ${textFileName} (${content.length} chars)`);
-    } else {
-      console.error(`[${modeLabel}] Failed to load document: ${textFileName}`);
-    }
+  if (documentText) {
+    documentContext = documentText;
+    console.log(`[${modeLabel}] Loaded document: ${documentName} (${documentText.length} chars)`);
   } else {
-    console.log(`[${modeLabel}] No textFileName provided - general chat mode`);
+    console.log(`[${modeLabel}] No document text provided - general chat mode`);
   }
 
   // Build system instructions following OpenAI Realtime prompting guide
@@ -274,9 +251,26 @@ ${documentContext}
     // Handle OpenAI errors
     openaiWs.on('error', (error: Error) => {
       console.error(`[${modeLabel}] OpenAI error:`, error);
+
+      let errorMessage = 'Failed to connect to OpenAI. Please try again.';
+      let errorCode = 'OPENAI_ERROR';
+
+      // Check for specific error types
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        errorMessage = 'Invalid OpenAI API key. Please check your API key and try again.';
+        errorCode = 'INVALID_API_KEY';
+      } else if (error.message.includes('429') || error.message.includes('rate limit')) {
+        errorMessage = 'OpenAI rate limit exceeded. Please try again later.';
+        errorCode = 'RATE_LIMIT';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Connection to OpenAI timed out. Please check your internet connection.';
+        errorCode = 'TIMEOUT';
+      }
+
       clientWs.send(JSON.stringify({
         type: 'error',
-        message: error.message
+        message: errorMessage,
+        code: errorCode
       }));
     });
 

@@ -1,4 +1,16 @@
+"use client";
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to API key page on first visit
+    router.push('/api-key');
+  }, [router]);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}

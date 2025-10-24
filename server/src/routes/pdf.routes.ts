@@ -21,6 +21,44 @@ const TEXT_DIR = path.join(STORAGE_DIR, 'texts');
 });
 
 /**
+ * POST /api/pdf/extract
+ * Extract text from PDF (doesn't save the PDF, just returns text)
+ */
+router.post('/extract', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    if (req.file.mimetype !== 'application/pdf') {
+      return res.status(400).json({ error: 'File must be a PDF' });
+    }
+
+    const buffer = req.file.buffer;
+
+    // Extract text using pdf-parse
+    const pdfParse = require('pdf-parse');
+    const result = await pdfParse(buffer);
+
+    res.json({
+      success: true,
+      message: 'PDF text extracted successfully',
+      data: {
+        text: result.text,
+        numPages: result.numpages,
+        info: result.info,
+      },
+    });
+  } catch (error) {
+    console.error('Error extracting PDF:', error);
+    res.status(500).json({
+      error: 'Failed to extract PDF text',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
  * POST /api/pdf/upload
  * Upload and extract PDF
  */

@@ -8,9 +8,11 @@ export interface Document {
   recipient: string;
   date: string;
   status: "Draft" | "Completed";
-  pdfUrl: string;
+  pdfUrl: string; // base64 encoded PDF
+  pdfBase64: string; // Store base64 for easy access
+  extractedText: string; // Full extracted text
   signatures: any[];
-  textFileName?: string;
+  textFileName?: string; // For compatibility
 }
 
 export function useDocuments() {
@@ -21,50 +23,23 @@ export function useDocuments() {
   const [openMenuIndex, setOpenMenuIndex] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadDocumentsFromServer = async () => {
+    const loadDocumentsFromLocalStorage = () => {
       try {
-        // Fetch available PDFs from server
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/api/pdf/list`);
-
-        if (!response.ok) {
-          console.error('Failed to fetch PDF list from server');
+        const storedDocs = localStorage.getItem('documents');
+        if (storedDocs) {
+          const docs: Document[] = JSON.parse(storedDocs);
+          console.log("Loaded documents from localStorage:", docs);
+          setDocuments(docs);
+        } else {
           setDocuments([]);
-          return;
         }
-
-        const result = await response.json();
-        console.log("Server response:", result);
-
-        // Convert server PDFs to Document format
-        const docs: Document[] = result.data.map((pdf: any) => {
-          // Extract original name from filename (remove timestamp)
-          // Format: "filename-timestamp.pdf"
-          const match = pdf.filename.match(/^(.+)-(\d+)\.pdf$/);
-          const displayName = match ? match[1] + '.pdf' : pdf.filename;
-
-          return {
-            id: pdf.filename, // Use filename as unique ID
-            title: displayName,
-            sender: "Unknown",
-            recipient: "N/A",
-            date: new Date(pdf.created).toLocaleDateString(),
-            status: "Completed" as const,
-            pdfUrl: pdf.filename,
-            signatures: [],
-            textFileName: pdf.textFile, // Add text file name for AI chat
-          };
-        });
-
-        console.log("Loaded documents from server:", docs);
-        setDocuments(docs);
       } catch (error) {
-        console.error('Error loading documents from server:', error);
+        console.error('Error loading documents from localStorage:', error);
         setDocuments([]);
       }
     };
 
-    loadDocumentsFromServer();
+    loadDocumentsFromLocalStorage();
   }, []);
 
   const getUniqueFileName = (fileName: string, existingDocs: Document[]): string => {
@@ -100,21 +75,36 @@ export function useDocuments() {
     }
 
     try {
+      // Read PDF file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+
+      // Convert to base64 for storage
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+
+      // Send to backend for text extraction only
       const formData = new FormData();
       formData.append('file', file);
 
-      // Extract text from PDF using backend server
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const extractResponse = await fetch(`${API_URL}/api/pdf/upload`, {
+      const extractResponse = await fetch(`${API_URL}/api/pdf/extract`, {
         method: 'POST',
         body: formData,
       });
 
-      const extractResult = await extractResponse.json();
+      let extractedText = '';
 
-      if (!extractResult.success) {
-        alert("Failed to extract PDF content: " + (extractResult.error || "Unknown error"));
-        return;
+      if (extractResponse.ok) {
+        const extractResult = await extractResponse.json();
+        if (extractResult.success && extractResult.data.text) {
+          extractedText = extractResult.data.text;
+        } else {
+          extractedText = `[PDF uploaded: ${file.name}]\n\nText extraction failed, but the PDF has been saved and can be viewed.`;
+        }
+      } else {
+        console.error('Text extraction failed');
+        extractedText = `[PDF uploaded: ${file.name}]\n\nText extraction is currently unavailable. The PDF has been saved and can be viewed.`;
       }
 
       const documentsStr = localStorage.getItem("documents");
@@ -123,30 +113,34 @@ export function useDocuments() {
       // Get unique file name
       const uniqueFileName = getUniqueFileName(file.name, existingDocs);
 
-      // Store extracted text info
-      localStorage.setItem("extractedText", extractResult.data.textPreview);
-      localStorage.setItem("extractedTextFileName", extractResult.data.textFileName);
-      localStorage.setItem("uploadedPDFName", uniqueFileName);
-      localStorage.setItem("uploadedPDFFileName", extractResult.data.pdfFileName);
-
       const newDocument: Document = {
         id: Date.now().toString(),
         title: uniqueFileName,
-        sender: "John Doe",
+        sender: "Unknown",
         recipient: "N/A",
         date: new Date().toLocaleDateString(),
-        status: "Extracted",
-        pdfUrl: extractResult.data.pdfFileName,
+        status: "Completed",
+        pdfUrl: base64, // Store base64 directly
+        pdfBase64: base64,
+        extractedText: extractedText,
         signatures: [],
       };
 
       existingDocs.push(newDocument);
       localStorage.setItem("documents", JSON.stringify(existingDocs));
+
+      // Store for preview page compatibility
+      localStorage.setItem("extractedText", extractedText.substring(0, 500));
+      localStorage.setItem("uploadedPDFName", uniqueFileName);
       localStorage.setItem("currentDocumentId", newDocument.id);
+
+      // Update state
+      setDocuments(existingDocs);
 
       // Redirect to preview page
       router.push("/preview");
     } catch (error) {
+      console.error('Upload error:', error);
       alert("Failed to upload file: " + (error instanceof Error ? error.message : "Unknown error"));
     }
   };
@@ -156,43 +150,26 @@ export function useDocuments() {
       return;
     }
 
-    // TODO: Implement server-side delete endpoint
-    // For now, just remove from UI
+    // Remove from localStorage
     const updatedDocuments = documents.filter(doc => doc.id !== docId);
+    localStorage.setItem("documents", JSON.stringify(updatedDocuments));
     setDocuments(updatedDocuments);
     setOpenMenuIndex(null);
-
-    alert("Note: Server-side delete not yet implemented. Document will reappear on refresh.");
   };
 
   const handleEditDocument = async (docId: string) => {
     const doc = documents.find(d => d.id === docId);
     if (!doc) return;
 
-    // Extract the text filename from PDF filename
-    // PDF: "filename-timestamp.pdf" -> Text: "filename-timestamp.txt"
-    const textFileName = doc.pdfUrl.replace('.pdf', '.txt');
-
-    // Load the text preview from server
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
     try {
-      const response = await fetch(`${API_URL}/api/pdf/text/${textFileName}`);
-      if (response.ok) {
-        const result = await response.json();
-        const textPreview = result.data.content.substring(0, 500);
+      // Store document info in localStorage for preview page
+      const textPreview = doc.extractedText.substring(0, 500);
+      localStorage.setItem("extractedText", textPreview);
+      localStorage.setItem("uploadedPDFName", doc.title);
+      localStorage.setItem("currentDocumentId", doc.id);
 
-        // Store document info in localStorage for preview page
-        localStorage.setItem("extractedText", textPreview);
-        localStorage.setItem("extractedTextFileName", textFileName);
-        localStorage.setItem("uploadedPDFName", doc.title);
-        localStorage.setItem("uploadedPDFFileName", doc.pdfUrl);
-        localStorage.setItem("currentDocumentId", doc.id);
-
-        // Navigate to preview page
-        router.push("/preview");
-      } else {
-        alert("Failed to load document text");
-      }
+      // Navigate to preview page
+      router.push("/preview");
     } catch (error) {
       console.error("Error loading document:", error);
       alert("Failed to load document");

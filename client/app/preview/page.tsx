@@ -20,75 +20,55 @@ export default function Preview() {
 
   useEffect(() => {
     const loadDocumentData = async () => {
-      // Get the document data from localStorage
-      const fileName = localStorage.getItem("uploadedPDFName");
-      const extractedText = localStorage.getItem("extractedText");
-      const textFileName = localStorage.getItem("extractedTextFileName");
-      const pdfFileName = localStorage.getItem("uploadedPDFFileName");
+      // Get the current document from localStorage
       const currentDocumentId = localStorage.getItem("currentDocumentId");
 
-      if (!fileName || !extractedText) {
-        // No document data, redirect to upload
+      if (!currentDocumentId) {
+        // No document selected, redirect to upload
         router.push("/upload");
         return;
       }
 
-      // Get additional document info
+      // Get the document from the documents array
       const documentsStr = localStorage.getItem("documents");
       const documents = documentsStr ? JSON.parse(documentsStr) : [];
       const currentDoc = documents.find((doc: any) => doc.id === currentDocumentId);
 
-      // Try to load full text from the backend server
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      let fullText = extractedText;
-      if (textFileName) {
-        try {
-          const response = await fetch(`${API_URL}/api/pdf/text/${textFileName}`);
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.data.content) {
-              fullText = result.data.content;
-            }
-          } else if (response.status === 404) {
-            // Text file not found on server - redirect to dashboard
-            console.error("Text file not found on server, redirecting to dashboard");
-            router.push("/dashboard");
-            return;
-          }
-        } catch (error) {
-          console.error("Failed to load full text:", error);
-          // Fall back to preview text
-        }
+      if (!currentDoc) {
+        // Document not found, redirect to dashboard
+        router.push("/dashboard");
+        return;
       }
 
-      // Verify PDF exists on server
-      if (pdfFileName) {
+      // Get full extracted text from the document
+      const fullText = currentDoc.extractedText || "";
+      const extractedText = fullText.substring(0, 500);
+
+      // Calculate number of pages from PDF base64
+      let numPages = 0;
+      if (currentDoc.pdfBase64) {
         try {
-          const response = await fetch(`${API_URL}/api/pdf/view/${pdfFileName}`, {
-            method: 'HEAD' // Just check if it exists without downloading
-          });
-          if (!response.ok) {
-            console.error("PDF file not found on server, redirecting to dashboard");
-            router.push("/dashboard");
-            return;
-          }
+          // Simple estimation: PDFs typically have ~2000 bytes per page
+          const pdfSize = atob(currentDoc.pdfBase64).length;
+          numPages = Math.max(1, Math.round(pdfSize / 2000));
         } catch (error) {
-          console.error("Failed to verify PDF exists:", error);
+          console.error("Failed to estimate page count:", error);
+          numPages = 1;
         }
       }
 
       // Calculate word count from full text
       const wordCount = fullText
-        ? fullText.trim().split(/\s+/).filter(word => word.length > 0).length
+        ? fullText.trim().split(/\s+/).filter((word: string) => word.length > 0).length
         : 0;
 
       setDocumentData({
-        fileName: fileName || "Unknown Document",
-        extractedText: extractedText || "",
+        fileName: currentDoc.title || "Unknown Document",
+        extractedText: extractedText,
         fullText: fullText,
-        textFileName: textFileName || "",
-        pdfFileName: pdfFileName || currentDoc?.pdfFileName || "",
-        numPages: currentDoc?.numPages || 0,
+        textFileName: "",
+        pdfFileName: currentDoc.pdfBase64 || "",
+        numPages: numPages,
         textLength: fullText.length,
         wordCount: wordCount,
       });
@@ -162,10 +142,14 @@ export default function Preview() {
               </a>
               <button
                 onClick={() => {
-                  // Open the PDF in a new window from backend server
+                  // Open the PDF in a new window from base64
                   if (documentData?.pdfFileName) {
-                    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-                    window.open(`${API_URL}/api/pdf/view/${documentData.pdfFileName}`, '_blank');
+                    const pdfBlob = new Blob(
+                      [Uint8Array.from(atob(documentData.pdfFileName), c => c.charCodeAt(0))],
+                      { type: 'application/pdf' }
+                    );
+                    const pdfUrl = URL.createObjectURL(pdfBlob);
+                    window.open(pdfUrl, '_blank');
                   }
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { styles } from './styles/dashboard.styles';
 import { useDocuments, Document } from './hooks/useDocuments';
 import Navigation from './components/Navigation';
@@ -12,6 +12,15 @@ import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const router = useRouter();
+
+  // Check for API key on mount
+  useEffect(() => {
+    const apiKey = sessionStorage.getItem('openai_api_key');
+    if (!apiKey) {
+      // No API key found, redirect to API key page
+      router.push('/api-key');
+    }
+  }, [router]);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showChatModal, setShowChatModal] = useState(false);
   const [selectedChatMode, setSelectedChatMode] = useState<'text' | 'voice' | null>(null);
@@ -41,13 +50,19 @@ export default function Dashboard() {
   const navigateToChat = () => {
     if (!selectedDocument || !selectedChatMode) return;
 
+    setShowChatModal(false);
+
+    // Store full extracted text for AI to access
+    if (selectedDocument.extractedText) {
+      localStorage.setItem('currentDocumentText', selectedDocument.extractedText);
+    }
+
     const params = new URLSearchParams({
-      documentName: selectedDocument.title,
-      textFileName: selectedDocument.textFileName || ''
+      documentName: selectedDocument.title
     });
 
-    setShowChatModal(false);
-    router.push(`/${selectedChatMode === 'text' ? 'ai-voice' : 'ai-chat'}?${params.toString()}`);
+    // ai-chat = text chat (ChatGPT), ai-voice = voice chat
+    router.push(`/${selectedChatMode === 'text' ? 'ai-chat' : 'ai-voice'}?${params.toString()}`);
   };
 
   return (
@@ -84,7 +99,11 @@ export default function Dashboard() {
             {/* Action Buttons */}
             <div className="flex gap-3 sm:items-end">
               <button
-                onClick={() => navigateToChat('text')}
+                onClick={() => {
+                  if (!selectedDocument) return;
+                  setSelectedChatMode('text');
+                  navigateToChat();
+                }}
                 disabled={!selectedDocument}
                 className="flex-1 sm:flex-initial px-6 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
@@ -94,7 +113,11 @@ export default function Dashboard() {
                 Text Chat
               </button>
               <button
-                onClick={() => navigateToChat('voice')}
+                onClick={() => {
+                  if (!selectedDocument) return;
+                  setSelectedChatMode('voice');
+                  navigateToChat();
+                }}
                 disabled={!selectedDocument}
                 className="flex-1 sm:flex-initial px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
