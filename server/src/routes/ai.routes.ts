@@ -318,24 +318,42 @@ export function setupRealtimeWebSocket(server: any) {
   const wss = new WebSocketServer({ noServer: true });
 
   server.on('upgrade', (request: any, socket: any, head: any) => {
+    console.log('\n🔄 [WebSocket] Upgrade request received');
+    console.log(`  URL: ${request.url}`);
+    console.log(`  Headers: ${JSON.stringify(request.headers)}`);
+
     const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+    console.log(`  Pathname: ${pathname}`);
 
     if (pathname === '/api/ai/text') {
+      console.log('✅ [WebSocket] Upgrading to /api/ai/text');
       wss.handleUpgrade(request, socket, head, (ws) => {
         handleRealtimeConnection(ws, request, 'text');
       });
     } else if (pathname === '/api/ai/voice') {
+      console.log('✅ [WebSocket] Upgrading to /api/ai/voice');
       wss.handleUpgrade(request, socket, head, (ws) => {
         handleRealtimeConnection(ws, request, 'voice');
       });
     } else if (pathname === '/api/ai/realtime') {
+      console.log('✅ [WebSocket] Upgrading to /api/ai/realtime (legacy)');
       // Keep old endpoint for backward compatibility with AIChat component
       wss.handleUpgrade(request, socket, head, (ws) => {
         handleRealtimeConnection(ws, request, 'text');
       });
     } else {
+      console.log(`❌ [WebSocket] Unknown path: ${pathname} - destroying socket`);
       socket.destroy();
     }
+  });
+
+  // Log WebSocket errors
+  wss.on('error', (error) => {
+    console.error('❌ [WebSocket Server] Error:', error);
+  });
+
+  server.on('error', (error: any) => {
+    console.error('❌ [HTTP Server] Error:', error);
   });
 
   console.log('[Realtime API] WebSocket server initialized');

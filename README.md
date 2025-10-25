@@ -94,6 +94,38 @@ You need to run both the client and server:
    - Your API key is never sent to our servers or persisted permanently
    - You'll need to re-enter the key if you close your browser session
 
+### Using the Application on Mobile Devices
+
+To access the application from your phone or tablet on the same WiFi network:
+
+1. **Find your computer's IP address**:
+   - **Windows**: Run `ipconfig` in terminal, look for "IPv4 Address" (e.g., `192.168.1.100`)
+   - **Mac/Linux**: Run `ifconfig` or `ip addr`, look for your local IP
+
+2. **Configure the client** by creating `client/.env.local`:
+   ```env
+   NEXT_PUBLIC_API_URL=http://YOUR-COMPUTER-IP:5000
+   ```
+   Example:
+   ```env
+   NEXT_PUBLIC_API_URL=http://192.168.1.100:5000
+   ```
+
+3. **Restart the client dev server** after creating the `.env.local` file
+
+4. **Configure Windows Firewall** (Windows only):
+   - Open Windows Firewall with Advanced Security (`wfmsc.msc`)
+   - Create new Inbound Rule for TCP port 5000
+   - Allow the connection for Domain, Private, and Public networks
+   - This allows WebSocket connections from your mobile device
+
+5. **Access from your mobile device**:
+   - Open browser on your phone
+   - Navigate to `http://YOUR-COMPUTER-IP:3000`
+   - Example: `http://192.168.1.100:3000`
+
+**Note**: Both devices must be on the same WiFi network.
+
 ## Usage
 
 ### Upload a Document

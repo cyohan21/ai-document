@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function APIKeyPage() {
@@ -9,6 +9,20 @@ export default function APIKeyPage() {
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [debugInfo, setDebugInfo] = useState({
+    windowLocation: 'Loading...',
+    envVar: process.env.NEXT_PUBLIC_API_URL || 'NOT SET'
+  });
+
+  // Set window location on mount (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setDebugInfo({
+        windowLocation: window.location.href,
+        envVar: process.env.NEXT_PUBLIC_API_URL || 'NOT SET'
+      });
+    }
+  }, []);
 
   const validateAndContinue = async () => {
     // Send logs to backend for terminal output
@@ -58,62 +72,118 @@ export default function APIKeyPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const wsUrl = API_URL.replace("http", "ws");
 
-      await logToBackend(`Connecting to: ${wsUrl}`);
-      const ws = new WebSocket(`${wsUrl}/api/ai/text?apiKey=${encodeURIComponent(apiKey)}&test=true`);
+      await logToBackend(`API_URL from env: ${process.env.NEXT_PUBLIC_API_URL || 'NOT SET'}`);
+      await logToBackend(`Using API_URL: ${API_URL}`);
+      await logToBackend(`WebSocket URL: ${wsUrl}`);
+      await logToBackend(`Full WS connection string: ${wsUrl}/api/ai/text?apiKey=${apiKey.substring(0, 10)}...&test=true`);
 
-      const timeout = setTimeout(() => {
+      let wsConnectionString = `${wsUrl}/api/ai/text?apiKey=${encodeURIComponent(apiKey)}&test=true`;
+      await logToBackend(`Creating WebSocket with: ${wsConnectionString.substring(0, 100)}...`);
+
+      const ws = new WebSocket(wsConnectionString);
+
+      const timeout = setTimeout(async () => {
+        await logToBackend(`❌ Connection timeout after 10 seconds`);
+        await logToBackend(`WebSocket readyState: ${ws.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)`);
         ws.close();
-        setError("Connection timeout. Please check your API key and try again.");
+        setError(`Connection timeout after 10 seconds. WebSocket state: ${ws.readyState}. Server may not be accessible at ${wsUrl}`);
         setIsValidating(false);
       }, 10000);
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
+        await logToBackend("✅ WebSocket connection opened successfully");
         clearTimeout(timeout);
         ws.close();
 
         // Store in sessionStorage (ephemeral - lost on tab close)
         sessionStorage.setItem("openai_api_key", apiKey);
 
+        await logToBackend("✅ API key stored in sessionStorage, redirecting to dashboard");
         // Redirect to dashboard
         router.push("/dashboard");
       };
 
-      ws.onerror = () => {
+      ws.onerror = async (error) => {
+        const errorDetails = {
+          type: error.type,
+          message: error.message || 'No message',
+          target: error.target ? 'WebSocket' : 'Unknown',
+          readyState: ws.readyState
+        };
+        await logToBackend(`❌ WebSocket error event fired`);
+        await logToBackend(`❌ Error details: ${JSON.stringify(errorDetails)}`);
+        await logToBackend(`❌ WebSocket readyState: ${ws.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)`);
+        await logToBackend(`❌ Attempted connection to: ${wsUrl}`);
+        await logToBackend(`❌ This usually means: Cannot connect to server OR server rejected connection`);
+        await logToBackend(`❌ Possible causes: 1) Server not running, 2) Firewall blocking, 3) Wrong IP address, 4) Server not listening on 0.0.0.0`);
+
         clearTimeout(timeout);
-        setError("Failed to validate API key. Please check that it's correct.");
+        setError(`WebSocket Error: Failed to connect to ${wsUrl}
+
+Error Type: ${error.type || 'Unknown'}
+ReadyState: ${ws.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)
+
+Troubleshooting:
+1. Check server is running (should show "Server accessible on network at http://192.168.68.67:5000")
+2. Try accessing http://192.168.68.67:5000 in your phone's browser
+3. Check Windows Firewall isn't blocking port 5000
+4. Verify both devices on same WiFi network`);
         setIsValidating(false);
       };
 
       ws.onmessage = async (event) => {
         try {
           const messageText = event.data instanceof Blob ? await event.data.text() : event.data;
+          await logToBackend(`📨 Received message: ${messageText}`);
           const data = JSON.parse(messageText);
 
           if (data.type === "error") {
             clearTimeout(timeout);
             ws.close();
 
-            if (data.code === "INVALID_API_KEY" || data.code === "NO_API_KEY") {
-              setError("Invalid API key. Please check your OpenAI API key.");
+            await logToBackend(`❌ Error from server: ${JSON.stringify(data)}`);
+
+            let errorMsg = '';
+            if (data.code === "INVALID_API_KEY") {
+              errorMsg = `INVALID_API_KEY: ${data.message || 'Your API key was rejected by OpenAI. Please verify it is correct.'}`;
+            } else if (data.code === "NO_API_KEY") {
+              errorMsg = `NO_API_KEY: ${data.message || 'API key was not received by the server.'}`;
             } else {
-              setError(data.message || "Failed to validate API key");
+              errorMsg = `Error Code: ${data.code || 'Unknown'} - ${data.message || 'Failed to validate API key'}`;
             }
+
+            setError(errorMsg);
             setIsValidating(false);
           }
         } catch (e) {
-          // Ignore parsing errors
+          await logToBackend(`❌ Failed to parse message: ${e}`);
         }
       };
 
     } catch (error) {
-      setError("Failed to validate API key. Please try again.");
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      await logToBackend(`❌ Catch block error: ${errorMsg}`);
+      setError(`Exception: ${errorMsg} - Failed to create WebSocket connection.`);
       setIsValidating(false);
     }
   };
 
+  // Debug info
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const wsUrl = API_URL.replace("http", "ws");
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4 sm:p-6">
       <div className="max-w-md w-full">
+        {/* DEBUG INFO - Remove this later */}
+        <div className="bg-yellow-100 border-2 border-yellow-400 rounded-lg p-3 mb-4 text-xs break-all">
+          <strong>Debug Info:</strong>
+          <div>ENV: {debugInfo.envVar}</div>
+          <div>API_URL: {API_URL}</div>
+          <div>WS_URL: {wsUrl}</div>
+          <div>Window Location: {debugInfo.windowLocation}</div>
+        </div>
+
         {/* Logo/Branding */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
@@ -174,7 +244,10 @@ export default function APIKeyPage() {
               </button>
             </div>
             {error && (
-              <p className="mt-2 text-xs sm:text-sm text-red-600">{error}</p>
+              <div className="mt-2 bg-red-50 border-2 border-red-400 rounded-lg p-3">
+                <p className="text-xs sm:text-sm text-red-800 font-semibold mb-1">Error:</p>
+                <p className="text-xs sm:text-sm text-red-700 break-words">{error}</p>
+              </div>
             )}
           </div>
 

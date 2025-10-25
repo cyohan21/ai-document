@@ -13,14 +13,18 @@ const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Allow both localhost and network IP access
+// Dynamically allow any local network IP for development
 const allowedOrigins = [
   "http://localhost:3000",
-  "http://192.168.68.67:3000",
-  /^http:\/\/192\.168\.\d+\.\d+:3000$/  // Allow any local network IP
+  /^http:\/\/localhost:\d+$/,           // Any localhost port
+  /^http:\/\/127\.0\.0\.1:\d+$/,        // 127.0.0.1 with any port
+  /^http:\/\/192\.168\.\d+\.\d+:\d+$/,  // 192.168.x.x with any port (most common)
+  /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/,   // 10.x.x.x with any port
+  /^http:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+:\d+$/  // 172.16.x.x - 172.31.x.x
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
+  origin: (origin: any, callback: any) => {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
 
@@ -66,7 +70,8 @@ app.get("/", (req, res) => res.send("PDF Document Server - API Ready"));
 // Setup WebSocket for Realtime API
 setupRealtimeWebSocket(httpServer);
 
-httpServer.listen(PORT, () => {
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server accessible on network (update with your IP)`);
   console.log(`WebSocket available at ws://localhost:${PORT}/api/ai/realtime`);
 });
