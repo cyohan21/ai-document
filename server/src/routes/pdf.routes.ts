@@ -6,8 +6,13 @@ import { extractPDFToTextFile } from '../utils/pdf-extractor';
 
 const router = express.Router();
 
-// Configure multer for file uploads (store in memory)
-const upload = multer({ storage: multer.memoryStorage() });
+// Configure multer for file uploads (store in memory, 25MB limit)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 25 * 1024 * 1024 // 25MB in bytes
+  }
+});
 
 // Ensure storage directories exist
 const STORAGE_DIR = path.join(__dirname, '../../storage');
@@ -34,6 +39,10 @@ router.post('/extract', upload.single('file'), async (req: Request, res: Respons
       return res.status(400).json({ error: 'File must be a PDF' });
     }
 
+    if (req.file.size > 25 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 25MB limit' });
+    }
+
     const buffer = req.file.buffer;
 
     // Extract text using pdf-parse
@@ -51,6 +60,12 @@ router.post('/extract', upload.single('file'), async (req: Request, res: Respons
     });
   } catch (error) {
     console.error('Error extracting PDF:', error);
+
+    // Handle multer file size error
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size exceeds 25MB limit' });
+    }
+
     res.status(500).json({
       error: 'Failed to extract PDF text',
       details: error instanceof Error ? error.message : 'Unknown error',
@@ -70,6 +85,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
     if (req.file.mimetype !== 'application/pdf') {
       return res.status(400).json({ error: 'File must be a PDF' });
+    }
+
+    if (req.file.size > 25 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 25MB limit' });
     }
 
     const buffer = req.file.buffer;
@@ -100,6 +119,12 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
     });
   } catch (error) {
     console.error('Error extracting PDF:', error);
+
+    // Handle multer file size error
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size exceeds 25MB limit' });
+    }
+
     res.status(500).json({
       error: 'Failed to extract PDF content',
       details: error instanceof Error ? error.message : 'Unknown error',

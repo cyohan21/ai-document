@@ -24,6 +24,8 @@ ai-document/
 - 📊 **Document Preview** - See extracted text with word count and page count
 - 📁 **Document Management** - Dashboard to manage all uploaded documents
 - 💾 **Persistent Storage** - All PDFs and extracted text stored on the server
+- 🤖 **AI Chat** - Ask questions about your documents using OpenAI (text and voice)
+- 🔒 **Secure API Keys** - Ephemeral API key storage in browser session only
 
 ## Tech Stack
 
@@ -49,7 +51,7 @@ ai-document/
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/cyohan21/ai-document.git
    cd ai-document
    ```
 
@@ -86,6 +88,12 @@ You need to run both the client and server:
 3. **Open your browser**
    Navigate to `http://localhost:3000`
 
+4. **Provide your OpenAI API Key**
+   - On first access, you'll be prompted to enter your OpenAI API key
+   - The key is stored temporarily in your browser's session storage (ephemeral)
+   - Your API key is never sent to our servers or persisted permanently
+   - You'll need to re-enter the key if you close your browser session
+
 ## Usage
 
 ### Upload a Document
@@ -113,16 +121,6 @@ See [server/README.md](server/README.md) for detailed API documentation.
 - `GET /api/pdf/view/:filename` - View PDF file
 - `GET /api/pdf/text/:filename` - Get extracted text
 - `GET /api/pdf/list` - List all PDFs
-
-## Environment Variables
-
-Create `.env.local` in the client directory:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
-```
-
-This environment variable tells the Next.js client where to find the backend server.
 
 ## Project Details
 
@@ -160,6 +158,38 @@ server/
 All files are stored in `server/storage/`:
 - **PDFs**: `server/storage/pdfs/{filename}-{timestamp}.pdf`
 - **Text**: `server/storage/texts/{filename}-{timestamp}.txt`
+
+## AI Prompt Engineering
+
+The application implements OpenAI's best practices for prompt engineering, following their official [Realtime API prompting guide](https://platform.openai.com/docs/guides/realtime):
+
+### Prompt Structure
+
+Our system prompts follow a clear, hierarchical structure:
+
+1. **Role & Objective** - Defines the AI's purpose and success criteria
+2. **Personality & Tone** - Sets conversational style and voice characteristics
+3. **Context** - Provides document content for analysis
+4. **Instructions / Rules** - Specific behavioral guidelines and constraints
+5. **Conversation Flow** - Expected interaction patterns
+6. **Safety & Escalation** - Handling edge cases and boundaries
+
+### Key Features
+
+- **Conciseness Enforcement** - All responses limited to 3-4 sentences maximum for better user experience
+- **Document Grounding** - AI strictly bases answers on provided document content
+- **Citation Requirements** - Responses reference specific sections from the document
+- **Natural Voice** - Designed for realistic, conversational text-to-speech output
+- **Clear Boundaries** - Explicitly handles cases where information is not in the document
+
+### Implementation
+
+The prompt dynamically includes:
+- Document title and full content
+- Modality-specific configurations (text vs. voice)
+- User query context from previous interactions
+
+See [server/src/routes/ai.routes.ts](server/src/routes/ai.routes.ts) (lines 144-186) for the complete implementation.
 
 ## Development
 
