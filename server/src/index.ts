@@ -10,7 +10,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Allow both localhost and network IP access
 // Dynamically allow any local network IP for development
@@ -44,6 +44,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(express.static('public')); // Serve static files (mobile.html)
 
 // Request logging middleware
 app.use((req, res, next) => {

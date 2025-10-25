@@ -62,7 +62,7 @@ export default function TestText() {
       return;
     }
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
     const wsUrl = API_URL.replace("http", "ws");
 
     // Get document text from localStorage if available

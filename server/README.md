@@ -56,7 +56,29 @@ npm run build
 npm start
 ```
 
-The server will run on `http://localhost:5000`
+The server will run on `http://localhost:5001` (or the port specified in `.env`)
+
+### Accessing from Mobile Devices
+
+When accessing the application from a mobile device on the same WiFi network:
+
+1. The server automatically listens on all network interfaces (`0.0.0.0`)
+2. Find your computer's local IP address:
+   - **Mac/Linux**: Run `ifconfig | grep "inet "` in terminal
+   - **Windows**: Run `ipconfig` in command prompt
+3. Use your computer's IP address instead of `localhost`
+   - Example: `http://192.168.1.100:5001`
+
+**Client Configuration:**
+
+When you run the Next.js client in development mode (`npm run dev` in the client directory), it will display the network URL:
+
+```
+- Local:        http://localhost:3000
+- Network:      http://192.168.1.100:3000
+```
+
+Use the **Network** URL from your phone to access the application. The client is configured to automatically connect to the correct server IP when accessed this way.
 
 ## API Endpoints
 

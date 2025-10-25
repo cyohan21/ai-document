@@ -34,7 +34,7 @@ export default function AIChat({ textFileName, documentName }: AIChatProps) {
       return;
     }
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
     const wsUrl = API_URL.replace("http", "ws");
     const url = `${wsUrl}/api/ai/realtime?textFileName=${textFileName}&documentName=${encodeURIComponent(documentName)}`;
 

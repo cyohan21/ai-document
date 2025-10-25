@@ -39,7 +39,7 @@ export default function PDFUploader() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
       const response = await fetch(`${API_URL}/api/pdf/upload`, {
         method: 'POST',
         body: formData,

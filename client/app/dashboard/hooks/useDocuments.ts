@@ -85,11 +85,15 @@ export function useDocuments() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      console.log('Extracting from:', `${API_URL}/api/pdf/extract`);
+
       const extractResponse = await fetch(`${API_URL}/api/pdf/extract`, {
         method: 'POST',
         body: formData,
       });
+
+      console.log('Extract response status:', extractResponse.status);
 
       let extractedText = '';
 
@@ -101,7 +105,8 @@ export function useDocuments() {
           extractedText = `[PDF uploaded: ${file.name}]\n\nText extraction failed, but the PDF has been saved and can be viewed.`;
         }
       } else {
-        console.error('Text extraction failed');
+        const errorText = await extractResponse.text();
+        console.error('Text extraction failed:', errorText);
         extractedText = `[PDF uploaded: ${file.name}]\n\nText extraction is currently unavailable. The PDF has been saved and can be viewed.`;
       }
 

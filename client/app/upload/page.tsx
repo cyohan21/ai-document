@@ -39,11 +39,23 @@ export default function Upload() {
       formData.append('file', file);
 
       // Extract text from PDF using backend server
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      console.log('Uploading to:', `${API_URL}/api/pdf/upload`);
+
       const extractResponse = await fetch(`${API_URL}/api/pdf/upload`, {
         method: 'POST',
         body: formData,
       });
+
+      console.log('Response status:', extractResponse.status);
+
+      if (!extractResponse.ok) {
+        const errorText = await extractResponse.text();
+        console.error('Upload failed:', errorText);
+        setError(`Upload failed (${extractResponse.status}): ${errorText}`);
+        setLoading(false);
+        return;
+      }
 
       const extractResult = await extractResponse.json();
 
