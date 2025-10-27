@@ -11,7 +11,7 @@ export default function APIKeyPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [debugInfo, setDebugInfo] = useState({
     windowLocation: 'Loading...',
-    envVar: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
+    envVar: process.env.NEXT_PUBLIC_API_URL || 'NOT SET'
   });
 
   // Set window location on mount (client-side only)
@@ -19,7 +19,7 @@ export default function APIKeyPage() {
     if (typeof window !== 'undefined') {
       setDebugInfo({
         windowLocation: window.location.href,
-        envVar: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
+        envVar: process.env.NEXT_PUBLIC_API_URL || 'NOT SET'
       });
     }
   }, []);
@@ -36,86 +36,77 @@ export default function APIKeyPage() {
       return;
     }
 
+    // Check if API URL is configured
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+    if (!API_URL) {
+      setError("Configuration Error: NEXT_PUBLIC_API_URL is not configured. Please set NEXT_PUBLIC_API_URL in client/.env.local with your server's address (e.g., http://192.168.1.100:5000 for mobile or http://localhost:5000 for local development), then restart the Next.js dev server.");
+      return;
+    }
+
+    // When accessing from mobile (non-localhost), API_URL must not contain localhost
+    const isAccessingFromMobile = typeof window !== 'undefined' &&
+                                   window.location.hostname !== 'localhost' &&
+                                   !window.location.hostname.startsWith('127.');
+
+    if (isAccessingFromMobile && API_URL.includes('localhost')) {
+      setError("Configuration Error: You're accessing this app from a non-localhost address, but NEXT_PUBLIC_API_URL is set to localhost. Please update NEXT_PUBLIC_API_URL in client/.env.local with your computer's IP address (e.g., http://192.168.1.100:5000), then restart the Next.js dev server.");
+      return;
+    }
+
     setIsValidating(true);
     setError("");
 
     try {
-      // Test the API key by attempting to connect via WebSocket
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
-      const wsUrl = API_URL.replace("http", "ws");
-      const wsConnectionString = `${wsUrl}/api/ai/text?apiKey=${encodeURIComponent(apiKey)}&test=true`;
+      // Validate the API key with the server
+      const response = await fetch(`${API_URL}/api/ai/validate-key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey }),
+      });
 
-      const ws = new WebSocket(wsConnectionString);
+      const data = await response.json();
 
-      const timeout = setTimeout(() => {
-        ws.close();
-        setError("Connection timeout. Please check your network connection.");
-        setIsValidating(false);
-      }, 10000);
-
-      ws.onopen = () => {
-        clearTimeout(timeout);
-        ws.close();
-
+      if (data.valid) {
         // Store in sessionStorage (ephemeral - lost on tab close)
         sessionStorage.setItem("openai_api_key", apiKey);
 
         // Redirect to dashboard
         router.push("/dashboard");
-      };
-
-      ws.onerror = () => {
-        clearTimeout(timeout);
-        setError("Failed to connect to server. Please check your network connection.");
+      } else {
+        setError(data.error || 'Failed to validate API key');
         setIsValidating(false);
-      };
-
-      ws.onmessage = async (event) => {
-        try {
-          const messageText = event.data instanceof Blob ? await event.data.text() : event.data;
-          const data = JSON.parse(messageText);
-
-          if (data.type === "error") {
-            clearTimeout(timeout);
-            ws.close();
-
-            let errorMsg = data.message || 'Failed to validate API key';
-            if (data.code === "INVALID_API_KEY") {
-              errorMsg = 'Invalid API key. Please check your OpenAI API key and try again.';
-            } else if (data.code === "NO_API_KEY") {
-              errorMsg = 'API key was not received by the server.';
-            }
-
-            setError(errorMsg);
-            setIsValidating(false);
-          }
-        } catch (e) {
-          console.error('Failed to parse message:', e);
-        }
-      };
+      }
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Failed to validate API key: ${errorMsg}`);
+      setError(`Failed to connect to server: ${errorMsg}`);
       setIsValidating(false);
     }
   };
 
   // Debug info
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
-  const wsUrl = API_URL.replace("http", "ws");
+  const API_URL_DEBUG = process.env.NEXT_PUBLIC_API_URL || "NOT SET";
+  const wsUrl = API_URL_DEBUG.replace("http", "ws");
+
+  // Check if debug info should be shown
+  const showDebugInfo = process.env.NEXT_PUBLIC_SHOW_DEBUG_INFO === 'true';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4 sm:p-6">
       <div className="max-w-md w-full">
-        {/* DEBUG INFO - Remove this later */}
-        <div className="bg-yellow-100 border-2 border-yellow-400 rounded-lg p-3 mb-4 text-xs break-all">
-          <strong>Debug Info:</strong>
-          <div>ENV: {debugInfo.envVar}</div>
-          <div>API_URL: {API_URL}</div>
-          <div>WS_URL: {wsUrl}</div>
-          <div>Window Location: {debugInfo.windowLocation}</div>
-        </div>
+        {/* DEBUG INFO - Controlled by NEXT_PUBLIC_SHOW_DEBUG_INFO env var */}
+        {showDebugInfo && (
+          <div className="bg-yellow-100 border-2 border-yellow-400 rounded-lg p-3 mb-4 text-xs break-all">
+            <strong>Debug Info:</strong>
+            <div>ENV: {debugInfo.envVar}</div>
+            <div>API_URL: {API_URL_DEBUG}</div>
+            <div>WS_URL: {wsUrl}</div>
+            <div>Window Location: {debugInfo.windowLocation}</div>
+          </div>
+        )}
 
         {/* Logo/Branding */}
         <div className="text-center mb-6 sm:mb-8">

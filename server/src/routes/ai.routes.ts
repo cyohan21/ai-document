@@ -69,6 +69,65 @@ router.get('/realtime-test', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/ai/validate-key
+ * Validates an OpenAI API key by making a simple API call
+ */
+router.post('/validate-key', async (req: Request, res: Response) => {
+  try {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+      return res.status(400).json({
+        valid: false,
+        error: 'No API key provided'
+      });
+    }
+
+    if (!apiKey.startsWith('sk-')) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Invalid API key format'
+      });
+    }
+
+    // Test the API key with a minimal API call
+    const OpenAI = require('openai').default;
+    const openai = new OpenAI({ apiKey });
+
+    // Make a simple models list request to validate the key
+    await openai.models.list();
+
+    res.json({
+      valid: true,
+      message: 'API key is valid'
+    });
+
+  } catch (error: any) {
+    console.error('[API Key Validation] Error:', error.message);
+
+    // Check for specific OpenAI errors
+    if (error.status === 401) {
+      return res.status(401).json({
+        valid: false,
+        error: 'Invalid API key. Please check your OpenAI API key and try again.'
+      });
+    }
+
+    if (error.status === 429) {
+      return res.status(429).json({
+        valid: false,
+        error: 'Rate limit exceeded. Please try again in a moment.'
+      });
+    }
+
+    res.status(500).json({
+      valid: false,
+      error: 'Failed to validate API key. Please try again.'
+    });
+  }
+});
+
+/**
  * WebSocket endpoint for Realtime API
  * This will be upgraded to WebSocket by express-ws or similar
  */

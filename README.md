@@ -26,6 +26,8 @@ ai-document/
 - 💾 **Persistent Storage** - All PDFs and extracted text stored on the server
 - 🤖 **AI Chat** - Ask questions about your documents using OpenAI (text and voice)
 - 🔒 **Secure API Keys** - Ephemeral API key storage in browser session only
+- ✅ **API Key Validation** - Real-time validation of OpenAI API keys before use
+- ⚙️ **Environment Configuration** - Built-in checks for proper server URL configuration
 
 ## Tech Stack
 
@@ -90,9 +92,11 @@ You need to run both the client and server:
 
 4. **Provide your OpenAI API Key**
    - On first access, you'll be prompted to enter your OpenAI API key
+   - The application validates your key with OpenAI to ensure it's valid before proceeding
    - The key is stored temporarily in your browser's session storage (ephemeral)
-   - Your API key is never sent to our servers or persisted permanently
+   - Your API key is only sent to the server for validation and is never persisted permanently
    - You'll need to re-enter the key if you close your browser session
+   - If validation fails, you'll see a specific error message (invalid key, rate limit, etc.)
 
 ### Using the Application on Mobile Devices
 
@@ -111,6 +115,11 @@ To access the application from your phone or tablet on the same WiFi network:
    NEXT_PUBLIC_API_URL=http://192.168.1.100:5000
    ```
 
+   Optional - Enable debug info on the API key page:
+   ```env
+   NEXT_PUBLIC_SHOW_DEBUG_INFO=true
+   ```
+
 3. **Restart the client dev server** after creating the `.env.local` file
 
 4. **Configure Windows Firewall** (Windows only):
@@ -125,6 +134,22 @@ To access the application from your phone or tablet on the same WiFi network:
    - Example: `http://192.168.1.100:3000`
 
 **Note**: Both devices must be on the same WiFi network.
+
+### Common Troubleshooting for Mobile Access
+
+If you can't access the application from your mobile device:
+
+1. **Using `localhost` on mobile** - This won't work! `localhost` refers to the mobile device itself, not your computer. You must use your computer's actual IP address (e.g., `192.168.1.100:3000`).
+
+2. **Wrong IP address in `.env.local`** - Make sure the `NEXT_PUBLIC_API_URL` in `client/.env.local` matches your computer's IP address. Double-check by running `ipconfig getifaddr en0` (Mac/Linux) or `ipconfig` (Windows).
+
+3. **Forgot to restart the dev server** - Environment variable changes require a restart of the Next.js dev server to take effect.
+
+4. **Different WiFi networks** - Ensure both your computer and mobile device are connected to the same WiFi network.
+
+5. **Firewall blocking connections** - On Windows, make sure you've configured the firewall to allow connections on port 5000.
+
+**Tip**: Set `NEXT_PUBLIC_SHOW_DEBUG_INFO=true` in your `.env.local` file to see connection details on the API key page, which helps diagnose configuration issues.
 
 ## Usage
 
@@ -149,10 +174,17 @@ To access the application from your phone or tablet on the same WiFi network:
 See [server/README.md](server/README.md) for detailed API documentation.
 
 ### Quick Reference
+
+**PDF Endpoints:**
 - `POST /api/pdf/upload` - Upload and extract PDF
 - `GET /api/pdf/view/:filename` - View PDF file
 - `GET /api/pdf/text/:filename` - Get extracted text
 - `GET /api/pdf/list` - List all PDFs
+
+**AI Endpoints:**
+- `POST /api/ai/validate-key` - Validate OpenAI API key
+- `WS /api/ai/text` - WebSocket for text chat
+- `WS /api/ai/voice` - WebSocket for voice chat
 
 ## Project Details
 
