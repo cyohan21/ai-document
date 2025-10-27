@@ -71,3 +71,4 @@ client/extracted-texts/
 # Temporary files
 *.tmp
 .cache/
+tech.txt

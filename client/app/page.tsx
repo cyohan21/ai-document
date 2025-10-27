@@ -85,7 +85,7 @@ export default function Home() {
         {/* CTA Buttons */}
         <div className="flex flex-col xs:flex-row items-center justify-center gap-2 sm:gap-3">
           <a
-            href="/upload"
+            href="/dashboard"
             className="w-full xs:w-auto px-5 py-2.5 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 duration-600 font-semibold text-sm sm:text-base text-center"
           >
             Continue

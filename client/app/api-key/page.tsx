@@ -11,7 +11,7 @@ export default function APIKeyPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [debugInfo, setDebugInfo] = useState({
     windowLocation: 'Loading...',
-    envVar: process.env.NEXT_PUBLIC_API_URL || 'NOT SET'
+    envVar: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
   });
 
   // Set window location on mount (client-side only)
@@ -19,7 +19,7 @@ export default function APIKeyPage() {
     if (typeof window !== 'undefined') {
       setDebugInfo({
         windowLocation: window.location.href,
-        envVar: process.env.NEXT_PUBLIC_API_URL || 'NOT SET'
+        envVar: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'
       });
     }
   }, []);

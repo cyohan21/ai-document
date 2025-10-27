@@ -100,7 +100,7 @@ To access the application from your phone or tablet on the same WiFi network:
 
 1. **Find your computer's IP address**:
    - **Windows**: Run `ipconfig` in terminal, look for "IPv4 Address" (e.g., `192.168.1.100`)
-   - **Mac/Linux**: Run `ifconfig` or `ip addr`, look for your local IP
+   - **Mac/Linux**: Run `ipconfig getifaddr en0` to get your local IP address
 
 2. **Configure the client** by creating `client/.env.local`:
    ```env
