@@ -36,6 +36,7 @@ export default function TestAI() {
   const nextPlayTimeRef = useRef(0);
   const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const isMutedRef = useRef(false); // Add ref to track mute state for audio processor
+  const [isAudioDetected, setIsAudioDetected] = useState(false);
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -340,9 +341,21 @@ export default function TestAI() {
 
       processor.onaudioprocess = (e) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-        if (isMutedRef.current) return; // Don't send audio when muted (using ref to get current value)
 
         const inputData = e.inputBuffer.getChannelData(0);
+
+        // Calculate audio level (RMS - Root Mean Square)
+        let sum = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          sum += inputData[i] * inputData[i];
+        }
+        const rms = Math.sqrt(sum / inputData.length);
+        const audioLevel = rms * 100; // Scale to 0-100
+
+        // Update audio detection state (threshold of 0.5 to avoid noise)
+        setIsAudioDetected(audioLevel > 0.5 && !isMutedRef.current);
+
+        if (isMutedRef.current) return; // Don't send audio when muted (using ref to get current value)
 
         // Convert Float32Array to Int16Array (PCM16)
         const pcm16 = new Int16Array(inputData.length);
@@ -588,27 +601,37 @@ export default function TestAI() {
               </button>
             ) : (
               <>
-                <button
-                  onClick={toggleMute}
-                  className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
-                    isMuted
-                      ? "bg-red-500 text-white hover:bg-red-600"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                  title={isMuted ? "Unmute" : "Mute"}
-                >
-                  {isMuted ? (
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                    </svg>
-                  ) : (
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
-                      <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-1.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
-                    </svg>
+                {/* Mic Button with Audio Detection Ring */}
+                <div className="relative">
+                  {/* Animated ring when audio is detected */}
+                  {isAudioDetected && (
+                    <>
+                      <div className="absolute inset-0 rounded-full bg-purple-500 animate-ping opacity-75" style={{ animationDuration: '1s' }}></div>
+                      <div className="absolute inset-0 rounded-full bg-purple-400 animate-pulse"></div>
+                    </>
                   )}
-                </button>
+                  <button
+                    onClick={toggleMute}
+                    className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+                      isMuted
+                        ? "bg-red-500 text-white hover:bg-red-600"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                    title={isMuted ? "Unmute" : "Mute"}
+                  >
+                    {isMuted ? (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                        <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-1.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 <button
                   onClick={disconnect}
                   className="w-14 h-14 rounded-full flex items-center justify-center bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
