@@ -35,6 +35,7 @@ export default function TestAI() {
   const playbackContextRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef(0);
   const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const isMutedRef = useRef(false); // Add ref to track mute state for audio processor
 
   // Load messages from localStorage on mount
   useEffect(() => {
@@ -255,10 +256,13 @@ export default function TestAI() {
 
     setIsConnected(false);
     setIsMuted(false);
+    isMutedRef.current = false; // Reset ref as well
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+    isMutedRef.current = newMutedState; // Update ref so audio processor can access current value
   };
 
   const addMessage = (role: "user" | "assistant" | "system", content: string) => {
@@ -336,7 +340,7 @@ export default function TestAI() {
 
       processor.onaudioprocess = (e) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-        if (isMuted) return; // Don't send audio when muted
+        if (isMutedRef.current) return; // Don't send audio when muted (using ref to get current value)
 
         const inputData = e.inputBuffer.getChannelData(0);
 
