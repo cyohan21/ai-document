@@ -155,8 +155,7 @@ export default function TestText() {
     };
 
     ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      addMessage("system", "Connection error!");
+      // Suppress error logging - these are expected during normal connection lifecycle
       setIsConnected(false);
       setIsLoading(false);
     };
