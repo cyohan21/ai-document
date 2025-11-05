@@ -16,6 +16,23 @@ export default function TestText() {
   // Build the voice chat URL with query params
   const voiceChatUrl = `/ai-voice${documentName ? `?documentName=${encodeURIComponent(documentName)}` : ''}`;
 
+  // Get document type from localStorage
+  const [documentType, setDocumentType] = useState<'pdf' | 'youtube' | null>(null);
+
+  useEffect(() => {
+    const currentDocId = localStorage.getItem('currentDocumentId');
+    if (currentDocId) {
+      const documentsStr = localStorage.getItem('documents');
+      if (documentsStr) {
+        const documents = JSON.parse(documentsStr);
+        const currentDoc = documents.find((doc: any) => doc.id === currentDocId);
+        if (currentDoc) {
+          setDocumentType(currentDoc.type);
+        }
+      }
+    }
+  }, []);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -214,14 +231,14 @@ export default function TestText() {
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <div className="border-b border-gray-200 px-3 sm:px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-            <h1 className="text-base sm:text-lg font-semibold text-gray-900 whitespace-nowrap">Text Chat</h1>
-            {documentName && (
-              <span className="text-xs sm:text-sm text-gray-500 truncate hidden xs:inline">• {documentName}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <a href="/dashboard" className="flex items-center gap-2 hover:opacity-70 transition-opacity flex-shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/30"></div>
+            </div>
+            <span className="text-base sm:text-lg font-bold text-gray-900 hidden sm:inline">Document AI</span>
+          </a>
+          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
             <a
               href={voiceChatUrl}
               className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
@@ -235,6 +252,50 @@ export default function TestText() {
               Dashboard
             </a>
           </div>
+        </div>
+      </div>
+
+      {/* Document Title Bar */}
+      <div className="border-b border-gray-200 px-3 sm:px-4 py-3">
+        <div className="max-w-4xl mx-auto flex justify-center">
+          <a
+            href="/dashboard"
+            className="flex items-center gap-3 hover:opacity-70 transition-opacity"
+          >
+            {documentType ? (
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                documentType === 'youtube' ? 'bg-red-600' : 'bg-purple-600'
+              }`}>
+                {documentType === 'youtube' ? (
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                )}
+              </div>
+            ) : (
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center bg-gray-600 flex-shrink-0">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                {documentName && documentName.length > 65
+                  ? (() => {
+                      const truncated = documentName.substring(0, 65);
+                      const lastSpace = truncated.lastIndexOf(' ');
+                      return (lastSpace > 0 ? truncated.substring(0, lastSpace) : truncated) + '...';
+                    })()
+                  : documentName || 'Text Chat'}
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500">Text Chat</p>
+            </div>
+          </a>
         </div>
       </div>
 

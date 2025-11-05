@@ -253,7 +253,19 @@ export function useDocuments() {
       router.push("/preview");
     } catch (error) {
       console.error('YouTube upload error:', error);
-      alert("Failed to process YouTube video: " + (error instanceof Error ? error.message : "Unknown error"));
+
+      // Provide user-friendly error messages
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      if (errorMessage.includes('duration') || errorMessage.includes('exceeds') || errorMessage.includes('too long')) {
+        alert("Video is too long. Videos must be less than 30 minutes.");
+      } else if (errorMessage.includes('No transcript')) {
+        alert("No transcript available for this video.");
+      } else if (errorMessage.includes('Invalid YouTube URL')) {
+        alert("Invalid YouTube URL. Please check the URL and try again.");
+      } else {
+        alert("Failed to process YouTube video. Please try again.");
+      }
     }
   };
 
