@@ -4,15 +4,21 @@ import { useRouter } from "next/navigation";
 export interface Document {
   id: string;
   title: string;
+  type: "pdf" | "youtube"; // Content type
   sender: string;
   recipient: string;
   date: string;
   status: "Draft" | "Completed";
-  pdfUrl: string; // base64 encoded PDF
-  pdfBase64: string; // Store base64 for easy access
-  extractedText: string; // Full extracted text
+  pdfUrl: string; // base64 encoded PDF (only for PDF type)
+  pdfBase64: string; // Store base64 for easy access (only for PDF type)
+  extractedText: string; // Full extracted text (for both PDF and YouTube)
   signatures: any[];
   textFileName?: string; // For compatibility
+  // YouTube-specific fields
+  youtubeUrl?: string;
+  channelName?: string;
+  duration?: number; // in seconds
+  uploadDate?: string;
 }
 
 export function useDocuments() {
@@ -119,6 +125,7 @@ export function useDocuments() {
       const newDocument: Document = {
         id: Date.now().toString(),
         title: uniqueFileName,
+        type: "pdf",
         sender: "Unknown",
         recipient: "N/A",
         date: new Date().toLocaleDateString(),
@@ -179,11 +186,83 @@ export function useDocuments() {
     }
   };
 
+  const handleYouTubeUpload = async (url: string) => {
+    if (!url.trim()) {
+      alert("Please enter a YouTube URL");
+      return;
+    }
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      console.log('Processing YouTube URL:', `${API_URL}/api/youtube/process`);
+
+      const response = await fetch(`${API_URL}/api/youtube/process`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to process YouTube video');
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to process YouTube video');
+      }
+
+      const documentsStr = localStorage.getItem("documents");
+      const existingDocs = documentsStr ? JSON.parse(documentsStr) : [];
+
+      // Get unique file name
+      const uniqueTitle = getUniqueFileName(result.data.metadata.title, existingDocs);
+
+      const newDocument: Document = {
+        id: Date.now().toString(),
+        title: uniqueTitle,
+        type: "youtube",
+        sender: result.data.metadata.channelName,
+        recipient: "N/A",
+        date: new Date().toLocaleDateString(),
+        status: "Completed",
+        pdfUrl: "", // Empty for YouTube
+        pdfBase64: "", // Empty for YouTube
+        extractedText: result.data.transcript,
+        signatures: [],
+        youtubeUrl: url,
+        channelName: result.data.metadata.channelName,
+        duration: result.data.metadata.duration,
+        uploadDate: result.data.metadata.uploadDate,
+      };
+
+      existingDocs.push(newDocument);
+      localStorage.setItem("documents", JSON.stringify(existingDocs));
+
+      // Store for preview page compatibility
+      localStorage.setItem("extractedText", result.data.transcript.substring(0, 500));
+      localStorage.setItem("uploadedPDFName", uniqueTitle);
+      localStorage.setItem("currentDocumentId", newDocument.id);
+
+      // Update state
+      setDocuments(existingDocs);
+
+      // Redirect to preview page
+      router.push("/preview");
+    } catch (error) {
+      console.error('YouTube upload error:', error);
+      alert("Failed to process YouTube video: " + (error instanceof Error ? error.message : "Unknown error"));
+    }
+  };
+
   return {
     documents,
     openMenuIndex,
     setOpenMenuIndex,
     handleFileUpload,
+    handleYouTubeUpload,
     handleDeleteDocument,
     handleEditDocument,
   };

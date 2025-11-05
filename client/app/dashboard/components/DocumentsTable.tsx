@@ -26,8 +26,7 @@ export default function DocumentsTable({
             <tr>
               <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-600">Created</th>
               <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-600">Title</th>
-              <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-600">Sender</th>
-              <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-600">Recipient</th>
+              <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-600">Type</th>
               <th className="px-4 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-600">Actions</th>
             </tr>
           </thead>
@@ -40,8 +39,15 @@ export default function DocumentsTable({
               >
                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{doc.date}</td>
                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 font-medium">{doc.title}</td>
-                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{doc.sender}</td>
-                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-600">{doc.recipient}</td>
+                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    doc.type === 'youtube'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {doc.type === 'youtube' ? 'YouTube' : 'PDF'}
+                  </span>
+                </td>
                 <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
                     <button
@@ -153,12 +159,14 @@ export default function DocumentsTable({
 
             <div className="space-y-1 mb-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">Sender:</span>
-                <span className="text-gray-700">{doc.sender}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">Recipient:</span>
-                <span className="text-gray-700">{doc.recipient}</span>
+                <span className="text-gray-500">Type:</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                  doc.type === 'youtube'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {doc.type === 'youtube' ? 'YouTube' : 'PDF'}
+                </span>
               </div>
             </div>
 

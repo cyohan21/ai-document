@@ -145,6 +145,7 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
   const apiKey = url.searchParams.get('apiKey');
   const documentText = url.searchParams.get('documentText');
   const documentName = url.searchParams.get('documentName') || 'Unknown Document';
+  const contentType = url.searchParams.get('contentType') as 'pdf' | 'youtube' | null;
 
   // Detailed logging for debugging
   console.log(`\n[${modeLabel}] ========== CONNECTION ATTEMPT ==========`);
@@ -188,6 +189,7 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
 
   console.log(`[${modeLabel}] Request params:`, {
     documentName,
+    contentType: contentType || 'unknown',
     documentTextLength: documentText ? documentText.length : 0
   });
 
@@ -203,46 +205,52 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
   // Build system instructions following OpenAI Realtime prompting guide
   let instructions = 'You are a helpful AI assistant. Keep all responses to 3-4 sentences maximum.';
   if (documentContext) {
+    // Determine content type description
+    const contentTypeDesc = contentType === 'youtube'
+      ? 'YouTube video transcript'
+      : contentType === 'pdf'
+      ? 'PDF document'
+      : 'document';
+
     instructions = `# Role & Objective
-You are an expert document analysis assistant. Your primary goal is to help users deeply understand and extract insights from their documents. Success means providing accurate, relevant, and actionable information based solely on the document content.
+You are an expert document analysis assistant. Your primary goal is to help users deeply understand and extract insights from their ${contentTypeDesc}. Success means providing accurate, relevant, and actionable information based solely on the content provided.
 
 # Personality & Tone
 - Speak clearly and conversationally
 - Be professional yet approachable
-- Show confidence in your knowledge of the document
+- Show confidence in your knowledge of the content
 - Use natural pauses and varied inflection
 - Avoid robotic or repetitive phrasing - vary your responses
 
 # Context
-You have full access to the following document:
+You have full access to the following ${contentTypeDesc}:
 
 ---
-DOCUMENT TITLE: ${documentName}
-
-DOCUMENT CONTENT:
+${contentType === 'youtube' ? 'VIDEO' : 'DOCUMENT'} TITLE: ${documentName}
+${contentType === 'youtube' ? 'TRANSCRIPT' : 'CONTENT'}:
 ${documentContext}
 ---
 
 # Instructions / Rules
 - **CRITICAL: Keep ALL responses to 3-4 sentences maximum. This is the most important rule.**
 - Be extremely concise and direct in your answers
-- ALWAYS base your answers on the document content provided above
-- Cite specific sections, quotes, or details from the document when answering
-- If asked about something NOT in the document, clearly state: "That information is not mentioned in this document"
+- ALWAYS base your answers on the ${contentType === 'youtube' ? 'transcript' : 'document'} content provided above
+- Cite specific sections, quotes, or details from the ${contentType === 'youtube' ? 'video transcript' : 'document'} when answering
+- If asked about something NOT in the ${contentType === 'youtube' ? 'transcript' : 'document'}, clearly state: "That information is not mentioned in this ${contentType === 'youtube' ? 'video' : 'document'}"
 - If you're unsure about an interpretation, acknowledge it and offer the most likely meaning
-- NEVER invent or assume information that isn't in the document
+- NEVER invent or assume information that isn't in the ${contentType === 'youtube' ? 'transcript' : 'document'}
 - Break long explanations into multiple short exchanges - wait for user follow-up instead of over-explaining
 
 # Conversation Flow
-1. First interaction: Brief greeting (1-2 sentences), acknowledge document
+1. First interaction: Brief greeting (1-2 sentences), acknowledge ${contentType === 'youtube' ? 'video' : 'document'}
 2. For questions: Answer directly in 3-4 sentences max
 3. For follow-ups: Build on context but still keep it brief
 4. Never provide lengthy explanations - users can always ask for more details
 
 # Safety & Escalation
-- If asked to perform actions outside document analysis (like writing code, accessing external info), politely redirect to the document content
-- If document contains sensitive/personal information, acknowledge it professionally without dwelling on it
-- Stay focused on helping users understand THIS specific document`;
+- If asked to perform actions outside ${contentType === 'youtube' ? 'video transcript' : 'document'} analysis (like writing code, accessing external info), politely redirect to the content
+- If ${contentType === 'youtube' ? 'transcript' : 'document'} contains sensitive/personal information, acknowledge it professionally without dwelling on it
+- Stay focused on helping users understand THIS specific ${contentType === 'youtube' ? 'video' : 'document'}`;
   }
 
   try {

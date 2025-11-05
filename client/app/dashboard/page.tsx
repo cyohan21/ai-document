@@ -26,6 +26,7 @@ export default function Dashboard() {
     openMenuIndex,
     setOpenMenuIndex,
     handleFileUpload,
+    handleYouTubeUpload,
     handleDeleteDocument,
     handleEditDocument,
   } = useDocuments();
@@ -63,9 +64,9 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Document Selector */}
+            {/* Content Selector */}
             <div className="flex-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Select Document</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Select Content</label>
               <select
                 value={selectedDocument?.id || ''}
                 onChange={(e) => {
@@ -74,7 +75,7 @@ export default function Dashboard() {
                 }}
                 className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
               >
-                <option value="">Choose a document...</option>
+                <option value="">Choose content...</option>
                 {documents.map(doc => (
                   <option key={doc.id} value={doc.id}>{doc.title}</option>
                 ))}
@@ -99,8 +100,8 @@ export default function Dashboard() {
 
         <div>
           <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Documents</h2>
-            <UploadButton onFileUpload={handleFileUpload} />
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Content</h2>
+            <UploadButton onFileUpload={handleFileUpload} onYouTubeUpload={handleYouTubeUpload} />
           </div>
 
           <DocumentsTable

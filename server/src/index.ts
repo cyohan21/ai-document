@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import pdfRoutes from "./routes/pdf.routes";
+import youtubeRoutes from "./routes/youtube.routes";
 import aiRoutes, { setupRealtimeWebSocket } from "./routes/ai.routes";
 
 // Load environment variables
@@ -55,6 +56,9 @@ app.use((req, res, next) => {
 
 // PDF routes
 app.use('/api/pdf', pdfRoutes);
+
+// YouTube routes
+app.use('/api/youtube', youtubeRoutes);
 
 // AI routes (Realtime API)
 app.use('/api/ai', aiRoutes);

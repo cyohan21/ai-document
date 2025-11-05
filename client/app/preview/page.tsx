@@ -14,6 +14,11 @@ export default function Preview() {
     numPages: number;
     textLength: number;
     wordCount: number;
+    type: "pdf" | "youtube";
+    youtubeUrl?: string;
+    channelName?: string;
+    duration?: number;
+    uploadDate?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTextExpanded, setIsTextExpanded] = useState(false);
@@ -53,9 +58,9 @@ export default function Preview() {
       const fullText = currentDoc.extractedText || "";
       const extractedText = fullText.substring(0, 500);
 
-      // Calculate number of pages from PDF base64
+      // Calculate number of pages from PDF base64 (only for PDFs)
       let numPages = 0;
-      if (currentDoc.pdfBase64) {
+      if (currentDoc.type === 'pdf' && currentDoc.pdfBase64) {
         try {
           // Simple estimation: PDFs typically have ~2000 bytes per page
           const pdfSize = atob(currentDoc.pdfBase64).length;
@@ -80,6 +85,11 @@ export default function Preview() {
         numPages: numPages,
         textLength: fullText.length,
         wordCount: wordCount,
+        type: currentDoc.type,
+        youtubeUrl: currentDoc.youtubeUrl,
+        channelName: currentDoc.channelName,
+        duration: currentDoc.duration,
+        uploadDate: currentDoc.uploadDate,
       });
       setLoading(false);
     };
@@ -133,68 +143,121 @@ export default function Preview() {
         <div className="mb-6 sm:mb-8">
           <div className="mb-4">
             <h1 className="text-2xl sm:text-4xl font-semibold text-gray-900 mb-2 sm:mb-3">
-              Document Preview
+              Content Preview
             </h1>
             <p className="text-sm sm:text-lg text-gray-600 mb-4 sm:mb-6">
-              Extracted text from your PDF document
+              {documentData.type === 'youtube'
+                ? 'Transcript from YouTube video'
+                : 'Extracted text from your PDF document'}
             </p>
 
             {/* Action Buttons - Stack on mobile */}
-            <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <a
                 href="/dashboard"
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-center text-sm sm:text-base"
+                className="inline-flex px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-sm sm:text-base"
               >
                 Go to Dashboard
               </a>
-              <button
-                onClick={() => {
-                  // Open the PDF in a new window from base64
-                  if (documentData?.pdfFileName) {
-                    const pdfBlob = new Blob(
-                      [Uint8Array.from(atob(documentData.pdfFileName), c => c.charCodeAt(0))],
-                      { type: 'application/pdf' }
-                    );
-                    const pdfUrl = URL.createObjectURL(pdfBlob);
-                    window.open(pdfUrl, '_blank');
-                  }
-                }}
-                className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                View PDF
-              </button>
+              {documentData.type === 'youtube' ? (
+                <a
+                  href={documentData.youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm sm:text-base"
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  Watch Video
+                </a>
+              ) : (
+                <button
+                  onClick={() => {
+                    // Open the PDF in a new window from base64
+                    if (documentData?.pdfFileName) {
+                      const pdfBlob = new Blob(
+                        [Uint8Array.from(atob(documentData.pdfFileName), c => c.charCodeAt(0))],
+                        { type: 'application/pdf' }
+                      );
+                      const pdfUrl = URL.createObjectURL(pdfBlob);
+                      window.open(pdfUrl, '_blank');
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm sm:text-base"
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  View PDF
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Document Info Card */}
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
+          {/* Content Info Card */}
+          <div className={`border rounded-xl p-4 sm:p-6 mb-6 sm:mb-8 ${
+            documentData.type === 'youtube'
+              ? 'bg-red-50 border-red-200'
+              : 'bg-purple-50 border-purple-200'
+          }`}>
             <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 rounded-lg flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center shrink-0 ${
+                documentData.type === 'youtube' ? 'bg-red-600' : 'bg-purple-600'
+              }`}>
+                {documentData.type === 'youtube' ? (
+                  <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-base sm:text-xl font-semibold text-gray-900 truncate">{documentData.fileName}</h2>
-                <p className="text-xs sm:text-sm text-gray-600">PDF Document</p>
+                <p className="text-xs sm:text-sm text-gray-600">
+                  {documentData.type === 'youtube' ? 'YouTube Video' : 'PDF Document'}
+                </p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-purple-200">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Pages</p>
-                <p className="text-lg sm:text-2xl font-semibold text-purple-700">{documentData.numPages}</p>
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Words</p>
-                <p className="text-lg sm:text-2xl font-semibold text-purple-700">{documentData.wordCount.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Status</p>
-                <p className="text-lg sm:text-2xl font-semibold text-green-600">✓</p>
-              </div>
+            <div className={`grid ${documentData.type === 'youtube' ? 'grid-cols-3' : 'grid-cols-3'} gap-2 sm:gap-4 pt-3 sm:pt-4 border-t ${
+              documentData.type === 'youtube' ? 'border-red-200' : 'border-purple-200'
+            }`}>
+              {documentData.type === 'youtube' ? (
+                <>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Duration</p>
+                    <p className="text-lg sm:text-2xl font-semibold text-red-700">
+                      {documentData.duration ? `${Math.floor(documentData.duration / 60)}:${String(documentData.duration % 60).padStart(2, '0')}` : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Words</p>
+                    <p className="text-lg sm:text-2xl font-semibold text-red-700">{documentData.wordCount.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Status</p>
+                    <p className="text-lg sm:text-2xl font-semibold text-green-600">✓</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Pages</p>
+                    <p className="text-lg sm:text-2xl font-semibold text-purple-700">{documentData.numPages}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Words</p>
+                    <p className="text-lg sm:text-2xl font-semibold text-purple-700">{documentData.wordCount.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Status</p>
+                    <p className="text-lg sm:text-2xl font-semibold text-green-600">✓</p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -207,10 +270,12 @@ export default function Preview() {
           >
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Extracted Text</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                  {documentData.type === 'youtube' ? 'Transcript' : 'Extracted Text'}
+                </h3>
                 <p className="text-xs sm:text-sm text-gray-600 mt-1">
                   {isTextExpanded
-                    ? `Full text (${documentData.textLength.toLocaleString()} characters)`
+                    ? `Full ${documentData.type === 'youtube' ? 'transcript' : 'text'} (${documentData.textLength.toLocaleString()} characters)`
                     : `Tap to expand - Preview`}
                 </p>
               </div>

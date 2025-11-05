@@ -65,14 +65,29 @@ export default function TestText() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
     const wsUrl = API_URL.replace("http", "ws");
 
-    // Get document text from localStorage if available
+    // Get document text and metadata from localStorage if available
     const documentText = localStorage.getItem('currentDocumentText');
+    const currentDocId = localStorage.getItem('currentDocumentId');
+
+    // Get document type from stored documents
+    let contentType: 'pdf' | 'youtube' | undefined;
+    if (currentDocId) {
+      const documentsStr = localStorage.getItem('documents');
+      if (documentsStr) {
+        const documents = JSON.parse(documentsStr);
+        const currentDoc = documents.find((doc: any) => doc.id === currentDocId);
+        if (currentDoc) {
+          contentType = currentDoc.type;
+        }
+      }
+    }
 
     // Add document context parameters if available
     const params = new URLSearchParams();
     params.append('apiKey', apiKey); // Pass API key to backend
     if (documentName) params.append('documentName', documentName);
     if (documentText) params.append('documentText', documentText);
+    if (contentType) params.append('contentType', contentType);
 
     const url = `${wsUrl}/api/ai/text?${params.toString()}`;
 
