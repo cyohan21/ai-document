@@ -1,6 +1,6 @@
 # AI Document Analyzer
 
-A full-stack application for uploading, analyzing, and extracting content from PDF documents using AI.
+A full-stack application for uploading, analyzing, and extracting content from PDF documents and YouTube videos using AI.
 
 ## Project Structure
 
@@ -18,16 +18,19 @@ ai-document/
 
 ## Features
 
-- 📄 **PDF Upload** - Upload PDF documents through an intuitive interface
-- 🔍 **Text Extraction** - Automatically extract text content from PDFs
+- 📄 **PDF Upload** - Upload PDF documents through an intuitive interface (max 25MB)
+- 🎥 **YouTube Integration** - Extract transcripts from YouTube videos for analysis
+- 🔍 **Text Extraction** - Automatically extract text content from PDFs and YouTube transcripts
 - 👁️ **PDF Viewing** - View original PDFs directly in the browser
-- 📊 **Document Preview** - See extracted text with word count and page count
-- 📁 **Document Management** - Dashboard to manage all uploaded documents
-- 💾 **Persistent Storage** - All PDFs and extracted text stored on the server
-- 🤖 **AI Chat** - Ask questions about your documents using OpenAI (text and voice)
+- 📊 **Document Preview** - See extracted text with word count, page count, and video metadata
+- 📁 **Document Management** - Unified dashboard to manage PDFs and YouTube videos
+- 💾 **Persistent Storage** - Documents stored locally in browser (localStorage)
+- 🤖 **AI Chat** - Ask questions about your documents using OpenAI (text and voice modes)
+- 💬 **Contextual AI** - AI automatically understands whether you're analyzing a PDF or YouTube video
 - 🔒 **Secure API Keys** - Ephemeral API key storage in browser session only
 - ✅ **API Key Validation** - Real-time validation of OpenAI API keys before use
 - ⚙️ **Environment Configuration** - Built-in checks for proper server URL configuration
+- 📱 **Responsive Design** - Optimized for desktop and mobile devices
 
 ## Tech Stack
 
@@ -42,6 +45,9 @@ ai-document/
 - **TypeScript** - Type-safe server development
 - **Multer** - File upload handling
 - **pdf-parse** - PDF text extraction
+- **youtube-transcript** - YouTube transcript extraction
+- **WebSocket (ws)** - Real-time AI communication
+- **OpenAI Realtime API** - GPT-4o powered chat (text and voice)
 - **CORS** - Cross-origin resource sharing
 
 ## Getting Started
@@ -153,21 +159,46 @@ If you can't access the application from your mobile device:
 
 ## Usage
 
-### Upload a Document
-1. Go to `/upload` or click "Upload Document" on the dashboard
-2. Select a PDF file
-3. Wait for extraction to complete
-4. You'll be redirected to the preview page
+### Add Content
 
-### View Document
-- **Preview Page**: See extracted text with metadata (pages, words)
-- **View PDF**: Click "View PDF" to open the original in a new tab
-- **Dashboard**: See all uploaded documents with preview option
+The application supports two types of content:
+
+#### Upload a PDF Document
+1. Click "Add Content" on the dashboard
+2. Select "Upload PDF" option
+3. Choose a PDF file from your device (max 25MB)
+4. Wait for extraction to complete
+5. You'll be redirected to the preview page
+
+#### Add a YouTube Video
+1. Click "Add Content" on the dashboard
+2. Select "Add YouTube Video" option
+3. Paste a YouTube URL
+4. Click "Add YouTube Video" or press Enter
+5. Wait for transcript extraction (max 3-hour videos)
+6. You'll be redirected to the preview page
+
+### View Content
+- **Preview Page**: See extracted text with metadata
+  - For PDFs: page count, word count, extracted text
+  - For YouTube: video duration, channel name, transcript
+- **Chat with AI**: Red button to start AI conversation about the content
+- **View Original**: Open PDF in new tab or watch YouTube video
+- **Dashboard**: Navigate back to see all your content
+
+### AI Chat Features
+- **Text Chat**: Ask questions and get concise answers (3-4 sentences)
+- **Voice Chat**: Speak naturally and hear AI responses (mobile warning displayed)
+- **Context-Aware**: AI knows if you're analyzing a PDF or YouTube video
+- **Document Grounding**: Answers are based strictly on your document content
+- **Smart Truncation**: Long document titles are shortened with word boundaries
 
 ### Dashboard
-- View all uploaded documents
-- Click "Preview" to see extracted content
+- View all uploaded PDFs and YouTube videos in one place
+- Visual indicators: Purple icon for PDFs, Red YouTube icon for videos
+- Click "Preview" to see content and start chatting with AI
 - Delete documents you no longer need
+- Persistent storage across browser sessions
 
 ## API Endpoints
 
@@ -176,15 +207,18 @@ See [server/README.md](server/README.md) for detailed API documentation.
 ### Quick Reference
 
 **PDF Endpoints:**
-- `POST /api/pdf/upload` - Upload and extract PDF
+- `POST /api/pdf/upload` - Upload and extract PDF (max 25MB)
 - `GET /api/pdf/view/:filename` - View PDF file
 - `GET /api/pdf/text/:filename` - Get extracted text
 - `GET /api/pdf/list` - List all PDFs
 
+**YouTube Endpoints:**
+- `POST /api/youtube/process` - Extract transcript from YouTube URL (max 3 hours)
+
 **AI Endpoints:**
 - `POST /api/ai/validate-key` - Validate OpenAI API key
-- `WS /api/ai/text` - WebSocket for text chat
-- `WS /api/ai/voice` - WebSocket for voice chat
+- `WS /api/ai/text` - WebSocket for text chat (with document context)
+- `WS /api/ai/voice` - WebSocket for voice chat (with document context)
 
 ## Project Details
 
@@ -192,13 +226,14 @@ See [server/README.md](server/README.md) for detailed API documentation.
 ```
 client/
 ├── app/
-│   ├── api/              # API route proxies
-│   ├── dashboard/        # Dashboard page
-│   ├── preview/          # Document preview page
-│   ├── upload/           # Upload page
+│   ├── ai-chat/          # Text chat page
+│   ├── ai-voice/         # Voice chat page
+│   ├── api-key/          # API key setup page
+│   ├── dashboard/        # Dashboard with documents
+│   ├── preview/          # Content preview page
 │   ├── globals.css       # Global styles
 │   ├── layout.tsx        # Root layout
-│   └── page.tsx          # Home page
+│   └── page.tsx          # Home page (redirects to dashboard)
 ├── components/           # Reusable components
 └── lib/                  # Utilities
 ```
@@ -208,20 +243,35 @@ client/
 server/
 ├── src/
 │   ├── routes/
-│   │   └── pdf.routes.ts    # PDF API endpoints
+│   │   ├── pdf.routes.ts      # PDF upload & extraction
+│   │   ├── youtube.routes.ts  # YouTube transcript extraction
+│   │   └── ai.routes.ts       # AI chat endpoints (WebSocket)
 │   ├── utils/
-│   │   └── pdf-extractor.ts # PDF extraction logic
-│   └── index.ts             # Main server file
-└── storage/                 # Auto-created on first upload
-    ├── pdfs/               # Uploaded PDF files
-    └── texts/              # Extracted text files
+│   │   ├── pdf-extractor.ts      # PDF text extraction
+│   │   └── youtube-extractor.ts  # YouTube transcript extraction
+│   └── index.ts               # Main server file
+└── storage/                   # Auto-created on first upload
+    ├── pdfs/                 # Uploaded PDF files
+    └── texts/                # Extracted text files
 ```
 
 ## Storage
 
-All files are stored in `server/storage/`:
-- **PDFs**: `server/storage/pdfs/{filename}-{timestamp}.pdf`
-- **Text**: `server/storage/texts/{filename}-{timestamp}.txt`
+All document data is stored client-side in the browser's localStorage:
+
+### Client Storage (localStorage)
+- **documents**: Array of all PDFs and YouTube videos with complete metadata
+  - For PDFs: Base64-encoded PDF data, extracted text, page count, word count
+  - For YouTube: Video URL, transcript, duration, channel name, upload date
+- **currentDocumentId**: ID of the currently selected document
+- **currentDocumentText**: Full extracted text/transcript for AI context
+- **textChatMessages**: Chat history for text conversations
+- **voiceChatMessages**: Chat history for voice conversations
+
+### Session Storage
+- **openai_api_key**: User's OpenAI API key (ephemeral, cleared on browser close)
+
+**Note**: PDFs are temporarily uploaded to the server for text extraction at `server/storage/pdfs/`, but the extracted content and metadata are stored in the browser's localStorage. The server does not maintain a persistent database of user documents.
 
 ## AI Prompt Engineering
 
@@ -249,11 +299,17 @@ Our system prompts follow a clear, hierarchical structure:
 ### Implementation
 
 The prompt dynamically includes:
-- Document title and full content
+- Document title and full content (PDF or YouTube transcript)
+- Content type awareness (PDF document vs. YouTube video)
 - Modality-specific configurations (text vs. voice)
 - User query context from previous interactions
 
-See [server/src/routes/ai.routes.ts](server/src/routes/ai.routes.ts) (lines 144-186) for the complete implementation.
+**Content Type Handling:**
+- PDFs are referred to as "PDF document" with "content"
+- YouTube videos are referred to as "YouTube video transcript" with "transcript"
+- The AI adapts its language based on the content type for more natural responses
+
+See [server/src/routes/ai.routes.ts](server/src/routes/ai.routes.ts) (lines 204-253) for the complete implementation.
 
 ## Development
 
@@ -273,23 +329,6 @@ npm run build    # Compile TypeScript
 npm start        # Run compiled JavaScript
 ```
 
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
 ## License
 
 MIT
-
-## Future Enhancements
-
-- [ ] AI-powered question answering about documents
-- [ ] Multi-language support for PDFs
-- [ ] OCR for scanned PDFs
-- [ ] Document search and filtering
-- [ ] User authentication
-- [ ] Document sharing
-- [ ] Export options (Markdown, JSON)
