@@ -147,6 +147,12 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
   const documentName = url.searchParams.get('documentName') || 'Unknown Document';
   const contentType = url.searchParams.get('contentType') as 'pdf' | 'youtube' | null;
 
+  // Get YouTube-specific metadata
+  const youtubeUrl = url.searchParams.get('youtubeUrl');
+  const channelName = url.searchParams.get('channelName');
+  const duration = url.searchParams.get('duration');
+  const uploadDate = url.searchParams.get('uploadDate');
+
   // Detailed logging for debugging
   console.log(`\n[${modeLabel}] ========== CONNECTION ATTEMPT ==========`);
   console.log(`[${modeLabel}] Request URL: ${request.url}`);
@@ -158,6 +164,13 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
     console.log(`[${modeLabel}] API Key format check: starts with 'sk-' = ${apiKey.startsWith('sk-')}`);
   }
   console.log(`[${modeLabel}] Document: ${documentName}`);
+  console.log(`[${modeLabel}] Content Type: ${contentType || 'unknown'}`);
+  if (contentType === 'youtube' && youtubeUrl) {
+    console.log(`[${modeLabel}] YouTube URL: ${youtubeUrl}`);
+    console.log(`[${modeLabel}] Channel: ${channelName || 'unknown'}`);
+    console.log(`[${modeLabel}] Duration: ${duration ? `${duration}s` : 'unknown'}`);
+    console.log(`[${modeLabel}] Upload Date: ${uploadDate || 'unknown'}`);
+  }
   console.log(`[${modeLabel}] ===========================================\n`);
 
   // Validate API key is provided
@@ -212,6 +225,25 @@ function handleRealtimeConnection(clientWs: WebSocket, request: any, modality: '
       ? 'PDF document'
       : 'document';
 
+    // Build metadata section for YouTube videos
+    let metadataSection = '';
+    if (contentType === 'youtube') {
+      const metadataParts = [];
+      if (youtubeUrl) metadataParts.push(`URL: ${youtubeUrl}`);
+      if (channelName) metadataParts.push(`Channel: ${channelName}`);
+      if (duration) {
+        const durationSecs = parseInt(duration);
+        const minutes = Math.floor(durationSecs / 60);
+        const seconds = durationSecs % 60;
+        metadataParts.push(`Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`);
+      }
+      if (uploadDate) metadataParts.push(`Upload Date: ${uploadDate}`);
+
+      if (metadataParts.length > 0) {
+        metadataSection = `\nMETADATA:\n${metadataParts.join('\n')}\n`;
+      }
+    }
+
     instructions = `# Role & Objective
 You are an expert document analysis assistant. Your primary goal is to help users deeply understand and extract insights from their ${contentTypeDesc}. Success means providing accurate, relevant, and actionable information based solely on the content provided.
 
@@ -226,7 +258,7 @@ You are an expert document analysis assistant. Your primary goal is to help user
 You have full access to the following ${contentTypeDesc}:
 
 ---
-${contentType === 'youtube' ? 'VIDEO' : 'DOCUMENT'} TITLE: ${documentName}
+${contentType === 'youtube' ? 'VIDEO' : 'DOCUMENT'} TITLE: ${documentName}${metadataSection}
 ${contentType === 'youtube' ? 'TRANSCRIPT' : 'CONTENT'}:
 ${documentContext}
 ---

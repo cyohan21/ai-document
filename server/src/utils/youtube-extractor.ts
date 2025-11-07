@@ -42,7 +42,7 @@ export async function fetchYouTubeTranscript(videoId: string, youtube: Innertube
     // Get transcript
     const transcriptData = await info.getTranscript();
 
-    if (!transcriptData || !transcriptData.transcript) {
+    if (!transcriptData || !transcriptData.transcript || !transcriptData.transcript.content || !transcriptData.transcript.content.body) {
       throw new Error('No transcript available');
     }
 

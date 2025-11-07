@@ -92,14 +92,42 @@ function VoiceChatContent() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
     const wsUrl = API_URL.replace("http", "ws");
 
-    // Get document text from localStorage if available
+    // Get document text and full metadata from localStorage
     const documentText = localStorage.getItem('currentDocumentText');
+    const currentDocId = localStorage.getItem('currentDocumentId');
+
+    // Get full document metadata from stored documents
+    let currentDoc: any = null;
+    if (currentDocId) {
+      const documentsStr = localStorage.getItem('documents');
+      if (documentsStr) {
+        const documents = JSON.parse(documentsStr);
+        currentDoc = documents.find((doc: any) => doc.id === currentDocId);
+      }
+    }
 
     // Add document context parameters if available
     const params = new URLSearchParams();
     params.append('apiKey', apiKey); // Pass API key to backend
-    if (documentName) params.append('documentName', documentName);
-    if (documentText) params.append('documentText', documentText);
+
+    if (currentDoc) {
+      // Send full document metadata
+      params.append('documentName', currentDoc.title || documentName || '');
+      params.append('documentText', currentDoc.extractedText || documentText || '');
+      params.append('contentType', currentDoc.type || 'pdf');
+
+      // Add YouTube-specific metadata
+      if (currentDoc.type === 'youtube') {
+        if (currentDoc.youtubeUrl) params.append('youtubeUrl', currentDoc.youtubeUrl);
+        if (currentDoc.channelName) params.append('channelName', currentDoc.channelName);
+        if (currentDoc.duration) params.append('duration', currentDoc.duration.toString());
+        if (currentDoc.uploadDate) params.append('uploadDate', currentDoc.uploadDate);
+      }
+    } else {
+      // Fallback to basic data if document not found
+      if (documentName) params.append('documentName', documentName);
+      if (documentText) params.append('documentText', documentText);
+    }
 
     const url = `${wsUrl}/api/ai/voice?${params.toString()}`;
 
