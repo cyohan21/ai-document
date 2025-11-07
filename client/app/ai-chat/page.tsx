@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface Message {
@@ -8,7 +8,7 @@ interface Message {
   content: string;
 }
 
-export default function TestText() {
+function TextChatContent() {
   const searchParams = useSearchParams();
   const documentName = searchParams.get('documentName');
   const textFileName = searchParams.get('textFileName');
@@ -385,5 +385,17 @@ export default function TestText() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function TestText() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    }>
+      <TextChatContent />
+    </Suspense>
   );
 }

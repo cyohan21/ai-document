@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 interface Message {
@@ -8,7 +8,7 @@ interface Message {
   content: string;
 }
 
-export default function TestAI() {
+function VoiceChatContent() {
   const searchParams = useSearchParams();
   const documentName = searchParams.get('documentName');
   const textFileName = searchParams.get('textFileName');
@@ -800,5 +800,17 @@ export default function TestAI() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function TestAI() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    }>
+      <VoiceChatContent />
+    </Suspense>
   );
 }
