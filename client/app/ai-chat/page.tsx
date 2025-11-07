@@ -100,11 +100,21 @@ function TextChatContent() {
     const params = new URLSearchParams();
     params.append('apiKey', apiKey); // Pass API key to backend
 
+    console.log('[Text Chat] Current document ID:', currentDocId);
+    console.log('[Text Chat] Current document:', currentDoc);
+    console.log('[Text Chat] Document text length:', documentText?.length || 0);
+
     if (currentDoc) {
       // Send full document metadata
       params.append('documentName', currentDoc.title || documentName || '');
       params.append('documentText', currentDoc.extractedText || documentText || '');
       params.append('contentType', currentDoc.type || 'pdf');
+
+      console.log('[Text Chat] Sending document:', {
+        title: currentDoc.title,
+        textLength: (currentDoc.extractedText || documentText || '').length,
+        type: currentDoc.type
+      });
 
       // Add YouTube-specific metadata
       if (currentDoc.type === 'youtube') {
@@ -112,8 +122,16 @@ function TextChatContent() {
         if (currentDoc.channelName) params.append('channelName', currentDoc.channelName);
         if (currentDoc.duration) params.append('duration', currentDoc.duration.toString());
         if (currentDoc.uploadDate) params.append('uploadDate', currentDoc.uploadDate);
+
+        console.log('[Text Chat] YouTube metadata:', {
+          url: currentDoc.youtubeUrl,
+          channel: currentDoc.channelName,
+          duration: currentDoc.duration,
+          uploadDate: currentDoc.uploadDate
+        });
       }
     } else {
+      console.warn('[Text Chat] No current document found, using fallback');
       // Fallback to basic data if document not found
       if (documentName) params.append('documentName', documentName);
       if (documentText) params.append('documentText', documentText);
@@ -121,7 +139,7 @@ function TextChatContent() {
 
     const url = `${wsUrl}/api/ai/text?${params.toString()}`;
 
-    console.log("Connecting to:", url.replace(apiKey, 'sk-***'));
+    console.log("Connecting to:", url.replace(apiKey, 'sk-***').substring(0, 200) + '...');
     const ws = new WebSocket(url);
 
     ws.onopen = () => {

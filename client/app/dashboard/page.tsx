@@ -38,10 +38,18 @@ export default function Dashboard() {
   };
 
   const navigateToTextChat = (doc: Document) => {
-    // Store full extracted text for AI to access
+    // Store full extracted text and document ID for AI to access
     if (doc.extractedText) {
       localStorage.setItem('currentDocumentText', doc.extractedText);
+      console.log('[Dashboard] Stored document text for chat:', doc.extractedText.substring(0, 100) + '...');
+    } else {
+      console.warn('[Dashboard] No extracted text found for document:', doc.title);
     }
+
+    localStorage.setItem('currentDocumentId', doc.id);
+    console.log('[Dashboard] Stored document ID:', doc.id);
+    console.log('[Dashboard] Document type:', doc.type);
+    console.log('[Dashboard] Full document:', JSON.stringify(doc, null, 2).substring(0, 500));
 
     const params = new URLSearchParams({
       documentName: doc.title
